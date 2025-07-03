@@ -16,7 +16,7 @@ def create_jobs(scheduler: AsyncIOScheduler, config: dict):
     for feed in config.get("rss_feeds", []):
         crawler = RSSCrawler(feed_url=feed)
         scheduler.add_job(
-            lambda c=crawler: asyncio.create_task(c.fetch_new()),
+            lambda c=crawler: c.fetch_new,
             "interval",
             minutes=config.get("interval_minutes", 60),
             next_run_time=datetime.now(timezone.utc),
