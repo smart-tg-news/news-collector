@@ -19,14 +19,6 @@ class RSSCrawler(BaseCrawler):
         self.state_path = state_path
         self.source = feed_url
 
-    def _load_last_id(self) -> str:
-        with shelve.open(self.state_path) as db:
-            return db.get(self.feed_url, "")
-
-    def _save_last_id(self, entry_id: str) -> None:
-        with shelve.open(self.state_path) as db:
-            db[self.feed_url] = entry_id
-
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
         async with aiohttp.ClientSession() as session:
             async with session.get(self.feed_url) as resp:
@@ -36,15 +28,10 @@ class RSSCrawler(BaseCrawler):
 
     async def fetch_new(self) -> List[NewsItem]:
         feed = await self._fetch_feed()
-        last_id = self._load_last_id()
         items = []
         for entry in feed.entries:
-            if last_id and entry.id == last_id:
-                break
             items.append(self._normalize(entry))
-        if feed.entries:
-            self._save_last_id(feed.entries[0].id)
-        logger.info("Fetched %d new items", len(items))
+        logger.info("Fetched %d items", len(items))
         return items
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
