@@ -1,12 +1,13 @@
 import logging
-import shelve
 from datetime import datetime
 from typing import List
+from dataclasses import asdict
 
 import aiohttp
 import feedparser
 
 from models.news_item import NewsItem
+from db.client import MongoClientSingleton
 from .base import BaseCrawler
 
 
@@ -36,7 +37,7 @@ class RSSCrawler(BaseCrawler):
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
         feed = await self._fetch_feed()
-        cutoff = datetime.utcnow().timestamp() - lookback_hours * 3600
+        cutoff = datetime.now().timestamp() - lookback_hours * 3600
         items = [self._normalize(e) for e in feed.entries if e.published_parsed and datetime(*e.published_parsed[:6]).timestamp() >= cutoff]
         return items
 
@@ -51,9 +52,18 @@ class RSSCrawler(BaseCrawler):
                 items.append(self._normalize(entry))
         return items
 
+    def save_data(self, data: List[NewsItem]) -> None:
+        mongo_client = MongoClientSingleton()
+        database = mongo_client["Prod"]
+        collection = database["news_raw"]
+
+        dict_data = [asdict(entry) for entry in data]
+        collection.insert_many(dict_data)
+        logger.info(f"Saved {len(dict_data)} news to db")
+
     def _normalize(self, raw_data) -> NewsItem:
         published = raw_data.published_parsed
-        dt = datetime(*published[:6]) if published else datetime.utcnow()
+        dt = datetime(*published[:6]) if published else datetime.now()
         return NewsItem(
             title=raw_data.get("title", ""),
             url=raw_data.get("link", ""),

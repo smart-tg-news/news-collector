@@ -68,6 +68,9 @@ class NewsAPICrawler(BaseCrawler):
                 resp.raise_for_status()
                 data = await resp.json()
         return [self._normalize(a) for a in data.get("articles", [])]
+    
+    def save_data(self, data) -> None:
+        return super()._save_data(data)
 
     def _normalize(self, raw_data) -> NewsItem:
         published_str = raw_data.get("publishedAt")

@@ -21,5 +21,9 @@ class BaseCrawler(abc.ABC):
         """Return news items published between start and end"""
 
     @abc.abstractmethod
+    def save_data(self, data) -> None:
+        """Store collected news items"""
+
+    @abc.abstractmethod
     def _normalize(self, raw_data) -> NewsItem:
         """Convert raw response to NewsItem"""
