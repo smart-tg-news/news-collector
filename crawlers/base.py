@@ -1,6 +1,8 @@
 import abc
 from typing import List
 from datetime import datetime
+import json
+from dataclasses import asdict
 
 from models.news_item import NewsItem
 
@@ -27,3 +29,8 @@ class BaseCrawler(abc.ABC):
     @abc.abstractmethod
     def _normalize(self, raw_data) -> NewsItem:
         """Convert raw response to NewsItem"""
+
+    @staticmethod
+    def news_to_json(news: List[NewsItem]) -> str:
+        news_dict = [asdict(entry) for entry in news]
+        return json.dumps(news_dict, indent=2, default=str)

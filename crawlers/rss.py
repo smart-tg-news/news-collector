@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import List
 from dataclasses import asdict
+import json
 
 import aiohttp
 import feedparser
@@ -72,3 +73,7 @@ class RSSCrawler(BaseCrawler):
             summary=raw_data.get("summary"),
             meta={"id": raw_data.get("id")}
         )
+    
+    @staticmethod
+    def feed_to_json(feed):
+        return json.dumps(feed, indent=2, ensure_ascii=False)
