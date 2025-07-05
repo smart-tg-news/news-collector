@@ -30,6 +30,7 @@ def create_jobs(scheduler: AsyncIOScheduler, config: dict):
             trigger="interval",
             minutes=config.get("interval_minutes", 60),
             next_run_time=datetime.now(),
+            name=f"Fetch {crawler.feed_url}"
         )
 
 
