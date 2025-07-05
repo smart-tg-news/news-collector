@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 from dataclasses import asdict
 import json
 
@@ -9,17 +9,25 @@ import feedparser
 
 from models.news_item import NewsItem
 from db.client import MongoClientSingleton
-from .base import BaseCrawler
+from ..base import BaseCrawler
+from .extra_field_processors import Processor
 
 
 logger = logging.getLogger(__name__)
 
 
 class RSSCrawler(BaseCrawler):
-    def __init__(self, feed_url: str, state_path: str = "rss_state.db") -> None:
+    def __init__(
+            self, 
+            feed_url: str, 
+            state_path: str = "rss_state.db", 
+            feed_procs: Optional[List[Processor]] = None
+    ) -> None:
+        
         self.feed_url = feed_url
         self.state_path = state_path
         self.source = feed_url
+        self.feed_procs = feed_procs if feed_procs is not None else []
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
         async with aiohttp.ClientSession() as session:
@@ -61,18 +69,23 @@ class RSSCrawler(BaseCrawler):
         dict_data = [asdict(entry) for entry in data]
         collection.insert_many(dict_data)
         logger.info(f"Saved {len(dict_data)} news to db")
-
+    
     def _normalize(self, raw_data) -> NewsItem:
         published = raw_data.published_parsed
-        dt = datetime(*published[:6]) if published else datetime.now()
-        return NewsItem(
-            title=raw_data.get("title", ""),
-            url=raw_data.get("link", ""),
-            source=self.feed_url,
-            publish_date=dt,
-            summary=raw_data.get("summary"),
-            meta={"id": raw_data.get("id")}
-        )
+        publish_date = datetime(*published[:6]) if published else datetime.now()
+
+        # base fields, present in all feeds
+        processed_data = {}
+        processed_data["title"]        = raw_data.get("title", "")
+        processed_data["url"]          = raw_data.get("link", "")
+        processed_data["summary"]      = raw_data.get("summary")
+        processed_data["publish_date"] = publish_date
+
+        # call proccessors to fill extra fields in processed data
+        for proc in self.feed_procs:
+            proc(raw_data, processed_data)
+
+        return NewsItem(**processed_data)
     
     @staticmethod
     def feed_to_json(feed):

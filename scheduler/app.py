@@ -1,11 +1,10 @@
-import asyncio
 import logging
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
-from crawlers.rss import RSSCrawler
 from crawlers.base import BaseCrawler
+from crawlers.rss.crawler_builder import build_rss_crawlers
 from utils.config import load_config
 
 
@@ -19,17 +18,15 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-async def job(crawler: BaseCrawler) -> None:
+async def fetch_job(crawler: BaseCrawler) -> None:
     news = await crawler.fetch_new()
     crawler.save_data(news)
 
 
 def create_jobs(scheduler: AsyncIOScheduler, config: dict):
-    logger.info("Inside create_jobs")
-    for feed in config.get("rss_feeds", []):
-        crawler = RSSCrawler(feed_url=feed)
+    for crawler in build_rss_crawlers(): 
         scheduler.add_job(
-            job, args=[crawler],
+            fetch_job, args=[crawler],
             trigger="interval",
             minutes=config.get("interval_minutes", 60),
             next_run_time=datetime.now(),

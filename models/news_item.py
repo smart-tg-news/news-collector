@@ -7,7 +7,6 @@ from typing import Optional
 class NewsItem:
     title: str
     url: str
-    source: str
     publish_date: datetime
     summary: Optional[str] = None
     full_text: Optional[str] = None
