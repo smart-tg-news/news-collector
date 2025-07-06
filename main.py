@@ -6,6 +6,13 @@ from scheduler.app import CrawlerScheduler
 from db.client import MongoClientSingleton
     
 
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler()  # send log to console
+    ]
+)
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":

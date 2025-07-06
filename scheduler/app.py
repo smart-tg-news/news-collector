@@ -1,4 +1,3 @@
-import logging
 from datetime import datetime
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -8,15 +7,6 @@ from crawlers.rss.crawler_builder import build_rss_crawlers
 from .db import CrawlerDB
 from utils.config import load_config
 
-
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()  # send log to console
-    ]
-)
-logger = logging.getLogger(__name__)
 
 
 class CrawlerScheduler:

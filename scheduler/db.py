@@ -7,7 +7,7 @@ DB_PATH = Path(__file__).resolve().parent / 'feeds.db'
 
 class CrawlerDB:
     """
-    Async SQLite client for managing news filters
+    Async SQLite client for persisting job data
     """
 
     def __init__(self, db_path: str = DB_PATH):
@@ -29,6 +29,16 @@ class CrawlerDB:
             );
         """)
         await self.conn.commit()
+
+    async def close(self) -> None:
+        """
+        Close the underlying database connection.
+        """
+        await self.conn.close()
+
+
+
+    """Methods for id-based filtering"""
 
     async def get_seen_ids(self, feed_id: str) -> Set[str]:
         """
@@ -56,8 +66,9 @@ class CrawlerDB:
         )
         await self.conn.commit()
 
-    async def close(self) -> None:
-        """
-        Close the underlying database connection.
-        """
-        await self.conn.close()
+
+
+    """
+    TODO: check if connection closed by 
+    mistake and reopen before any db commit
+    """

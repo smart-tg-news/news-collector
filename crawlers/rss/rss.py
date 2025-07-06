@@ -11,7 +11,7 @@ from models.news_item import NewsItem
 from db.client import MongoClientSingleton
 from ..base import BaseCrawler
 from .extra_field_processors import Processor
-from .filter.filter import FilterStrategy
+from .filter import FilterStrategy
 
 
 logger = logging.getLogger(__name__)
