@@ -11,6 +11,7 @@ from models.news_item import NewsItem
 from db.client import MongoClientSingleton
 from ..base import BaseCrawler
 from .extra_field_processors import Processor
+from .filter.filter import FilterStrategy
 
 
 logger = logging.getLogger(__name__)
@@ -20,14 +21,14 @@ class RSSCrawler(BaseCrawler):
     def __init__(
             self, 
             feed_url: str, 
-            state_path: str = "rss_state.db", 
-            feed_procs: Optional[List[Processor]] = None
+            filter_strategy: FilterStrategy,
+            processors: Optional[List[Processor]] = None
     ) -> None:
         
         self.feed_url = feed_url
-        self.state_path = state_path
         self.source = feed_url
-        self.feed_procs = feed_procs if feed_procs is not None else []
+        self.filter_strategy = filter_strategy
+        self.processors = processors or []
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
         async with aiohttp.ClientSession() as session:
@@ -38,10 +39,15 @@ class RSSCrawler(BaseCrawler):
 
     async def fetch_new(self) -> List[NewsItem]:
         feed = await self._fetch_feed()
+        logger.info("Fetched %d items", len(feed.entries))
+
+        # different filter logic for different feeds
+        filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
+        logger.info("Left %d items after filtering", len(filtered_feed_entries))
+
         items = []
-        for entry in feed.entries:
+        for entry in filtered_feed_entries:
             items.append(self._normalize(entry))
-        logger.info("Fetched %d items", len(items))
         return items
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
@@ -67,7 +73,8 @@ class RSSCrawler(BaseCrawler):
         collection = database["news_raw"]
 
         dict_data = [asdict(entry) for entry in data]
-        collection.insert_many(dict_data)
+        if dict_data:
+            collection.insert_many(dict_data)
         logger.info(f"Saved {len(dict_data)} news to db")
     
     def _normalize(self, raw_data) -> NewsItem:
@@ -82,7 +89,7 @@ class RSSCrawler(BaseCrawler):
         processed_data["publish_date"] = publish_date
 
         # call proccessors to fill extra fields in processed data
-        for proc in self.feed_procs:
+        for proc in self.processors:
             proc(raw_data, processed_data)
 
         return NewsItem(**processed_data)

@@ -23,8 +23,8 @@ async def fetch_job(crawler: BaseCrawler) -> None:
     crawler.save_data(news)
 
 
-def create_jobs(scheduler: AsyncIOScheduler, config: dict):
-    for crawler in build_rss_crawlers(): 
+async def create_jobs(scheduler: AsyncIOScheduler, config: dict):
+    for crawler in await build_rss_crawlers(): 
         scheduler.add_job(
             fetch_job, args=[crawler],
             trigger="interval",
@@ -37,5 +37,5 @@ def create_jobs(scheduler: AsyncIOScheduler, config: dict):
 async def run_scheduler(config_path: str = "config.yaml"):
     config = load_config(config_path)
     scheduler = AsyncIOScheduler()
-    create_jobs(scheduler, config)
+    await create_jobs(scheduler, config)
     scheduler.start()
