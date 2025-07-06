@@ -73,3 +73,15 @@ def labels_from_tags(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     # if no labels were present
     else:
         parsed["meta"]["labels"] = labels
+
+
+def set_explicit_label(raw: Dict[str, Any], parsed: Dict[str, Any], label: str) -> None:
+    # if some labels were already present
+    if (prev_labels := parsed["meta"].get("labels")):
+        if isinstance(prev_labels, list):
+            parsed["meta"]["labels"].append(label)
+        else:
+            parsed["meta"]["labels"] = [prev_labels, label]
+    # if no labels were present
+    else:
+        parsed["meta"]["labels"] = [label]
