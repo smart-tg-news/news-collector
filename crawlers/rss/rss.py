@@ -47,7 +47,7 @@ class RSSCrawler(BaseCrawler):
 
         # different filter logic for different feeds
         filtered_feed_entries = feed.entries
-        if self.filter_strategy is not None:
+        if (self.filter_strategy is not None) and (feed.entries):
             filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
         logger.info("Left %d items after filtering", len(filtered_feed_entries))
 
