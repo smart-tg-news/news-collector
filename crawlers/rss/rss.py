@@ -21,7 +21,7 @@ class RSSCrawler(BaseCrawler):
     def __init__(
             self, 
             feed_url: str, 
-            filter_strategy: FilterStrategy,
+            filter_strategy: Optional[FilterStrategy] = None,
             processors: Optional[List[Processor]] = None
     ) -> None:
         
@@ -42,7 +42,9 @@ class RSSCrawler(BaseCrawler):
         logger.info("Fetched %d items", len(feed.entries))
 
         # different filter logic for different feeds
-        filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
+        filtered_feed_entries = feed.entries
+        if self.filter_strategy is not None:
+            filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
         logger.info("Left %d items after filtering", len(filtered_feed_entries))
 
         items = []
