@@ -1,27 +1,38 @@
 import asyncio
 from dotenv import load_dotenv
+import logging
 
-from scheduler.app import run_scheduler
+from scheduler.app import CrawlerScheduler
 from db.client import MongoClientSingleton
-
-
-def setup() -> None:
-    load_dotenv()
-    MongoClientSingleton.init()
-
-def exit() -> None:
-    MongoClientSingleton.close()
     
 
-if __name__ == "__main__":
-    try:
-        setup()
+logger = logging.getLogger(__name__)
 
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.create_task(run_scheduler())
+if __name__ == "__main__":
+    # load global env
+    load_dotenv()
+    # init DB
+    MongoClientSingleton.init()
+    # instantiate scheduler
+    crawler_scheduler = CrawlerScheduler()
+
+    # create a fresh event loop
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+
+    try:
+        # schedule the “start” coroutine and run forever
+        loop.create_task(crawler_scheduler.start())
         loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
-        print("Scheduler stopped")
+        logging.info("Shutdown signal received")
     finally:
-        exit()
+        # synchronously wait for the async stop() to finish
+        loop.run_until_complete(crawler_scheduler.stop())
+        logging.info("Scheduler stopped")
+
+        # close db connection
+        MongoClientSingleton.close()
+
+        # loop cleanup
+        loop.close()

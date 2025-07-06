@@ -40,6 +40,9 @@ class RSSCrawler(BaseCrawler):
     async def fetch_new(self) -> List[NewsItem]:
         feed = await self._fetch_feed()
         logger.info("Fetched %d items", len(feed.entries))
+        
+        # with open("/home/koldi/se/news-collector/feed_samples/feed_techcrunch.json", 'w') as f:
+        #     f.write(self.feed_to_json(feed))
 
         # different filter logic for different feeds
         filtered_feed_entries = feed.entries

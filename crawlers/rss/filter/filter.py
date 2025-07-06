@@ -2,7 +2,7 @@ from abc import ABC, abstractmethod
 from typing import List
 import feedparser
 
-from .db import FilterDB 
+from scheduler.db import CrawlerDB 
 
 
 class FilterStrategy(ABC):
@@ -16,7 +16,7 @@ class FilterStrategy(ABC):
 
 
 class IdFilterStrategy(FilterStrategy):
-    def __init__(self, db: FilterDB):
+    def __init__(self, db: CrawlerDB):
         self.db = db
 
     async def filter_new(self, feed, feed_id):
