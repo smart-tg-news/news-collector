@@ -2,6 +2,7 @@ import aiosqlite
 from typing import Set, List
 from pathlib import Path
 from datetime import datetime
+import asyncio
 
 
 DB_PATH = Path(__file__).resolve().parent / 'feeds.db'
@@ -14,6 +15,8 @@ class CrawlerDB:
     def __init__(self, db_path: str = DB_PATH):
         self.db_path = db_path
         self.conn: aiosqlite.Connection
+        # lock for multi-statement DML
+        self._write_lock = asyncio.Lock()
 
     async def initialize(self) -> None:
         """
@@ -75,16 +78,19 @@ class CrawlerDB:
         """
         Atomically wipe out old GUIDs and insert the current batch.
         """
-        await self.conn.execute("BEGIN;")
-        await self.conn.execute(
-            "DELETE FROM seen_item_ids WHERE feed_id = ?",
-            (feed_id,)
-        )
-        await self.conn.executemany(
-            "INSERT INTO seen_item_ids(feed_id, guid) VALUES (?, ?)",
-            [(feed_id, guid) for guid in guids]
-        )
-        await self.conn.commit()
+
+        # lock prevents starting transaction within transaction 
+        async with self._write_lock:
+            await self.conn.execute("BEGIN;")
+            await self.conn.execute(
+                "DELETE FROM seen_item_ids WHERE feed_id = ?",
+                (feed_id,)
+            )
+            await self.conn.executemany(
+                "INSERT INTO seen_item_ids(feed_id, guid) VALUES (?, ?)",
+                [(feed_id, guid) for guid in guids]
+            )
+            await self.conn.commit()
 
 
     """ Methods for publish-date-based filtering """
