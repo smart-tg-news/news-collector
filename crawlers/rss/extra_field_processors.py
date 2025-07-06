@@ -11,10 +11,10 @@ function or __call__ method for processing
 extra feed fields must follow
 """
 class Processor(Protocol):
-    def __call__(self, item: Dict[str, Any], entry: Dict[str, Any]) -> None:
+    def __call__(self, raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
         """
-        Take `item` (raw feed entry) and
-        mutate `entry` (the parsed dict) in-place.
+        Take `raw` (raw feed entry) and
+        mutate `parsed` (the parsed dict) in-place.
         """
         ...
 
@@ -23,9 +23,9 @@ class Processor(Protocol):
 Various processors implemeting the 
 Processor signature
 """
-def full_text_from_content(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
+def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     try:
-        content_list = item["content"]
+        content_list = raw["content"]
     except KeyError:
         raise FieldProcessorException(
             'Field "content" not found in feed entry')
@@ -50,12 +50,12 @@ def full_text_from_content(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
             'Field "content.value" not found in feed entry')
     
     # key corresponds to NewsItem field
-    entry["full_text"] = full_text
+    parsed["full_text"] = full_text
 
 
-def labels_from_tags(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
+def labels_from_tags(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     try:
-        tags = item["tags"]
+        tags = raw["tags"]
     except KeyError:
         raise FieldProcessorException(
             'Field "tags" not found in feed entry')
@@ -65,11 +65,11 @@ def labels_from_tags(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
     labels = [tag["term"] for tag in tags]
 
     # if some labels were already present
-    if (prev_labels := entry["meta"].get("labels")):
+    if (prev_labels := parsed["meta"].get("labels")):
         if isinstance(prev_labels, list):
-            entry["meta"]["labels"].extend(labels)
+            parsed["meta"]["labels"].extend(labels)
         else:
-            entry["meta"]["labels"] = labels + [prev_labels]
+            parsed["meta"]["labels"] = labels + [prev_labels]
     # if no labels were present
     else:
-        entry["meta"]["labels"] = labels
+        parsed["meta"]["labels"] = labels
