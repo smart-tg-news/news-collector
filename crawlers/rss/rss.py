@@ -2,6 +2,7 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 from dataclasses import asdict
+from collections import defaultdict
 import json
 
 import aiohttp
@@ -92,6 +93,9 @@ class RSSCrawler(BaseCrawler):
         processed_data["url"]          = raw_data.get("link", "")
         processed_data["summary"]      = raw_data.get("summary")
         processed_data["publish_date"] = publish_date
+        processed_data["full_text"]    = str()
+        # if new fields are defined, put them inside meta
+        processed_data["meta"]         = dict()  
 
         # call proccessors to fill extra fields in processed data
         for proc in self.processors:
