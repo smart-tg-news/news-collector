@@ -5,7 +5,7 @@ from pathlib import Path
 
 DB_PATH = Path(__file__).resolve().parent / 'feeds.db'
 
-class FilterDB:
+class CrawlerDB:
     """
     Async SQLite client for managing news filters
     """
