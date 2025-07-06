@@ -54,8 +54,6 @@ class PublishDateFilterStrategy(FilterStrategy):
         current_dates = [datetime(*entry.published_parsed[:6]) 
                          for entry in feed.entries]
         latest_date = await self.db.get_latest_date(feed_id)
-        print(f"LATEST DATE {latest_date}")
-        print(f"LATEST DATE TYPE {type(latest_date)}")
         new_entries = [
             e for e, dt in zip(feed.entries, current_dates) if dt > latest_date]
         
