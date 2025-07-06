@@ -51,3 +51,25 @@ def full_text_from_content(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
     
     # key corresponds to NewsItem field
     entry["full_text"] = full_text
+
+
+def labels_from_tags(item: Dict[str, Any], entry: Dict[str, Any]) -> None:
+    try:
+        tags = item["tags"]
+    except KeyError:
+        raise FieldProcessorException(
+            'Field "tags" not found in feed entry')
+    assert isinstance(tags, list)
+    assert "term" in tags[0].keys()
+
+    labels = [tag["term"] for tag in tags]
+
+    # if some labels were already present
+    if (prev_labels := entry["meta"].get("labels")):
+        if isinstance(prev_labels, list):
+            entry["meta"]["labels"].extend(labels)
+        else:
+            entry["meta"]["labels"] = labels + [prev_labels]
+    # if no labels were present
+    else:
+        entry["meta"]["labels"] = labels
