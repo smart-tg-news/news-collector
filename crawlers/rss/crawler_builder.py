@@ -81,6 +81,11 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
                 else:
                     good.append(proc)
 
+            # TODO: FUUUUUCK sometimes different feed entries can have or not have tags.
+            # This means that we wont apply tag processor yet many entries require that.
+            # Apparently we should use the tag processor for such feed to without
+            # raising if no tag found. Same problem might occur with other processors i guess
+
             # Filter out duplicates from configured processors
             unique_configured = [p for p in configured_processors if p not in good]
             # Combine auto-detected + explicitly configured
