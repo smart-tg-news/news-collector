@@ -10,7 +10,7 @@ from utils.config import load_config
 
 
 class CrawlerScheduler:
-    def __init__(self, config_path: str = "config.yaml"):
+    def __init__(self, config_path: str = "config/config.yaml"):
         self.config: dict = load_config(config_path)
         self.scheduler: AsyncIOScheduler = AsyncIOScheduler()
         self.crawler_db = CrawlerDB()
