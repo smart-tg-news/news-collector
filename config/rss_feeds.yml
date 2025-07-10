@@ -1,0 +1,63 @@
+feeds:
+- feed_url: https://news.ycombinator.com/rss
+  filter_strategy: PublishDateFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://www.theverge.com/rss/index.xml
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://techcrunch.com/feed/
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://www.wired.com/feed/category/business/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: business
+- feed_url: https://www.wired.com/feed/category/culture/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: culture
+- feed_url: https://www.wired.com/feed/category/gear/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: gear
+- feed_url: https://www.wired.com/feed/category/ideas/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: ideas
+- feed_url: https://www.wired.com/feed/category/science/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: science
+- feed_url: https://www.wired.com/feed/category/security/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: security
+- feed_url: https://www.wired.com/feed/category/backchannel/latest/rss
+  fixed: true
+  processors:
+  - labels_from_tags
+  - set_explicit_label: backchannel
+- feed_url: https://www.teachthought.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://ww2.kqed.org/mindshift/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+- feed_url: https://feeds.feedburner.com/elearningindustry
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []

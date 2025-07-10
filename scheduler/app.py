@@ -17,15 +17,15 @@ class CrawlerScheduler:
 
     async def start(self):
         await self.crawler_db.initialize()
-        self._create_jobs()
+        await self._create_jobs()
         self.scheduler.start()
 
     async def stop(self):
         self.scheduler.shutdown(wait=True)
         await self.crawler_db.close()
 
-    def _create_jobs(self):
-        for crawler in build_rss_crawlers(self.crawler_db): 
+    async def _create_jobs(self):
+        for crawler in await build_rss_crawlers(self.crawler_db): 
             self.scheduler.add_job(
                 self._fetch_job, args=[crawler],
                 trigger="interval",

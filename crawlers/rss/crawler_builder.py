@@ -1,79 +1,119 @@
+import yaml
 from functools import partial
+from typing import List, Dict, Any
 
-from .rss import RSSCrawler
+from .filter import IdFilterStrategy, PublishDateFilterStrategy
 from .extra_field_processors import (
-    full_text_from_content, 
-    labels_from_tags, 
-    set_explicit_label
+    full_text_from_content,
+    labels_from_tags,
+    set_explicit_label,
+    FieldProcessorException,
 )
-from .filter import (
-    IdFilterStrategy, 
-    PublishDateFilterStrategy
-)
+from .rss import RSSCrawler
 
 
-def build_ycombinator_crawler(db, feed_url="https://news.ycombinator.com/rss"):
-    return RSSCrawler(
-        feed_url=feed_url, 
-        filter_strategy=PublishDateFilterStrategy(db)
-    )
+# Path to YAML config for RSS feeds
+CONFIG_PATH = 'config/rss_feeds.yml'
 
-def build_verge_crawler(db, feed_url="https://www.theverge.com/rss/index.xml"):
-    return RSSCrawler(
-        feed_url=feed_url, 
-        processors=[full_text_from_content, labels_from_tags], 
-        filter_strategy=IdFilterStrategy(db)
-    )
+# Registry mapping names in YAML to actual processor callables
+PROCESSOR_REGISTRY: Dict[str, Any] = {
+    'full_text_from_content': full_text_from_content,
+    'labels_from_tags': labels_from_tags,
+    'set_explicit_label': set_explicit_label,  # requires partial
+}
 
-def build_techcrunch_feed(db, feed_url="https://techcrunch.com/feed/"):
-    return RSSCrawler(
-        feed_url=feed_url, 
-        processors=[labels_from_tags],
-        filter_strategy=IdFilterStrategy(db)
-    )
+# Registry mapping names in YAML to filter strategy classes
+FILTER_STRATEGY_REGISTRY = {
+    'IdFilterStrategy': IdFilterStrategy,
+    'PublishDateFilterStrategy': PublishDateFilterStrategy,
+    # 'None': NoFilterStrategy,
+}
 
-"""Got 403 error"""
-# def build_lifehacker_feed(db, feed_url="https://lifehacker.com/feed/rss"):
-#     return RSSCrawler(
-#         feed_url=feed_url, 
-#         # filter_strategy=IdFilterStrategy(db)
-#     )
-
-
-
-def build_wired_feed(db):
+async def build_rss_crawlers(db) -> List[RSSCrawler]:
     """
-    Apart from category taxonomy there is also distinction by tags, e.g.
-    "https://www.wired.com/feed/tag/ai/latest/rss"
-    "https://www.wired.com/feed/tag/wired-guide/latest/rss"
-
-    But presumably tags are included in categories, yet this is still 
-    to be confirmed
+    Load crawler definitions from YAML, auto-detect best processors,
+    update config when necessary, and return instantiated crawlers.
     """
+    # Load existing YAML config
+    with open(CONFIG_PATH) as f:
+        config = yaml.safe_load(f)
 
-    feed_tmpl = "https://www.wired.com/feed/category/{category}/latest/rss".format
+    crawlers: List[RSSCrawler] = []
+    updated = False
 
-    crawlers = []
-    for label in ['business', 'culture', 'gear', 'ideas', 
-                  'science', 'security', 'backchannel']:
-        
-        label_processor = partial(set_explicit_label, label=label)
-        crawler = RSSCrawler(
-            feed_url=feed_tmpl(category=label), 
-            processors=[label_processor, labels_from_tags],
-            filter_strategy=IdFilterStrategy(db)
+    for entry in config.get('feeds', []):
+        feed_url = entry['feed_url']
+        fixed    = entry.get('fixed', False)
+
+        # Instantiate filter strategy
+        strat_name = entry.get('filter_strategy', 'IdFilterStrategy')
+        StratCls = FILTER_STRATEGY_REGISTRY.get(strat_name, IdFilterStrategy)
+        filter_strategy = StratCls(db)
+
+        # Parse any user-specified processors
+        configured_processors = []
+        for proc_cfg in entry.get('processors', []):
+            if isinstance(proc_cfg, str):
+                configured_processors.append(PROCESSOR_REGISTRY[proc_cfg])
+            elif isinstance(proc_cfg, dict):
+                name, param = next(iter(proc_cfg.items()))
+                fn = PROCESSOR_REGISTRY[name]
+                # Wrap with partial to bind label parameter
+                configured_processors.append(partial(fn, label=param))
+
+        if fixed:
+            processors = configured_processors
+        else:
+            # Auto-detect vs testable processors
+            testable = [full_text_from_content, labels_from_tags]
+            good = []
+            for proc in testable:
+                try:
+                    crawler = RSSCrawler(
+                        feed_url=feed_url,
+                        filter_strategy=None,
+                        processors=[proc],
+                    )
+                    # if this throws FieldProcessorException, it means proc isn't supported
+                    await crawler.fetch_new()
+                except FieldProcessorException:
+                    continue
+                else:
+                    good.append(proc)
+
+            # Filter out duplicates from configured processors
+            unique_configured = [p for p in configured_processors if p not in good]
+            # Combine auto-detected + explicitly configured
+            processors = good + unique_configured
+
+            # Update YAML config
+            entry['processors'] = []
+            for p in processors:
+                if hasattr(p, 'func') and p.func is set_explicit_label:
+                    # Extract the bound 'label' argument
+                    label_val = p.keywords.get('label')
+                    entry['processors'].append({ 'set_explicit_label': label_val })
+                else:
+                    # Find by value in registry
+                    for name, fn in PROCESSOR_REGISTRY.items():
+                        if fn is p:
+                            entry['processors'].append(name)
+                            break
+            entry['fixed'] = True
+            updated = True
+
+        # Instantiate the final crawler
+        crawlers.append(
+            RSSCrawler(
+                feed_url=feed_url,
+                filter_strategy=filter_strategy,
+                processors=processors,
+            )
         )
-        crawlers.append(crawler)    
 
-    return crawlers
-
-
-
-def build_rss_crawlers(crawler_db):
-    crawlers = []
-    crawlers.append(build_ycombinator_crawler(crawler_db))
-    crawlers.append(build_verge_crawler(crawler_db))
-    crawlers.append(build_techcrunch_feed(crawler_db))
-    crawlers.extend(build_wired_feed(crawler_db))
+    # If any new configs were fixed, write back to YAML
+    if updated:
+        with open(CONFIG_PATH, 'w') as f:
+            yaml.safe_dump(config, f)
 
     return crawlers
