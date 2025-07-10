@@ -6,6 +6,7 @@ from collections import defaultdict
 import json
 
 import aiohttp
+import asyncio
 import feedparser
 
 from models.news_item import NewsItem
@@ -16,6 +17,10 @@ from .filter import FilterStrategy
 
 
 logger = logging.getLogger(__name__)
+
+
+class FetchException(Exception):
+    ...
 
 
 class RSSCrawler(BaseCrawler):
@@ -32,17 +37,26 @@ class RSSCrawler(BaseCrawler):
         self.processors = processors or []
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
-        async with aiohttp.ClientSession() as session:
-            async with session.get(self.feed_url) as resp:
-                resp.raise_for_status()
-                text = await resp.text()
+        timeout = aiohttp.ClientTimeout(total=5)
+        async with aiohttp.ClientSession(timeout=timeout) as session:
+            try:
+                async with session.get(self.feed_url) as resp:
+                    resp.raise_for_status()
+                    text = await resp.text()
+            except (asyncio.TimeoutError, aiohttp.ClientResponseError, aiohttp.ClientError):
+                raise FetchException(
+                    f"Timeout fetching feed at {self.feed_url}"
+                )
         return feedparser.parse(text)
 
     async def fetch_new(self) -> List[NewsItem]:
-        feed = await self._fetch_feed()
+        try:
+            feed = await self._fetch_feed()
+        except FetchException:
+            raise FetchException
         logger.info("Fetched %d items", len(feed.entries))
         
-        # with open("/home/koldi/se/news-collector/feed_samples/feed_techcrunch.json", 'w') as f:
+        # with open("/home/koldi/se/news-collector/feed_samples/blog_ed.json", 'w') as f:
         #     f.write(self.feed_to_json(feed))
 
         # different filter logic for different feeds

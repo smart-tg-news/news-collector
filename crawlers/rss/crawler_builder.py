@@ -1,6 +1,7 @@
 import yaml
 from functools import partial
 from typing import List, Dict, Any
+import logging
 
 from .filter import IdFilterStrategy, PublishDateFilterStrategy
 from .extra_field_processors import (
@@ -9,7 +10,10 @@ from .extra_field_processors import (
     set_explicit_label,
     FieldProcessorException,
 )
-from .rss import RSSCrawler
+from .rss import RSSCrawler, FetchException
+
+
+logger = logging.getLogger(__name__)
 
 
 # Path to YAML config for RSS feeds
@@ -44,6 +48,10 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
     for entry in config.get('feeds', []):
         feed_url = entry['feed_url']
         fixed    = entry.get('fixed', False)
+        broken   = entry.get('broken', False)
+
+        if broken:
+            continue
 
         # Instantiate filter strategy
         strat_name = entry.get('filter_strategy', 'IdFilterStrategy')
@@ -75,7 +83,14 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
                         processors=[proc],
                     )
                     # if this throws FieldProcessorException, it means proc isn't supported
-                    await crawler.fetch_new()
+                    try:
+                        await crawler.fetch_new()
+                    except FetchException:
+                        logger.warning(f"Feed {feed_url} broken")
+                        broken = True
+                        entry['broken'] = True
+                        updated = True
+                        break
                 except FieldProcessorException:
                     continue
                 else:
@@ -108,13 +123,14 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
             updated = True
 
         # Instantiate the final crawler
-        crawlers.append(
-            RSSCrawler(
-                feed_url=feed_url,
-                filter_strategy=filter_strategy,
-                processors=processors,
+        if not broken:
+            crawlers.append(
+                RSSCrawler(
+                    feed_url=feed_url,
+                    filter_strategy=filter_strategy,
+                    processors=processors,
+                )
             )
-        )
 
     # If any new configs were fixed, write back to YAML
     if updated:

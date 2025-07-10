@@ -4,6 +4,7 @@ from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 from crawlers.base import BaseCrawler
 from crawlers.rss.crawler_builder import build_rss_crawlers
+from crawlers.rss.rss import FetchException
 from .db import CrawlerDB
 from utils.config import load_config
 
@@ -36,5 +37,8 @@ class CrawlerScheduler:
 
     @staticmethod
     async def _fetch_job(crawler: BaseCrawler) -> None:
-        news = await crawler.fetch_new()
+        try:
+            news = await crawler.fetch_new()
+        except FetchException:
+            news = []
         crawler.save_data(news)

@@ -61,3 +61,298 @@ feeds:
   filter_strategy: IdFilterStrategy
   fixed: true
   processors: []
+- feed_url: https://feeds.megaphone.fm/KAP3710732955
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+- feed_url: https://www.discoveryeducation.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- broken: true
+  feed_url: https://blog.ed.gov/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://theeducatorsroom.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://www.teachertoolkit.co.uk/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://www.edtechreview.in/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://languagemagazine.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- broken: true
+  feed_url: https://larryferlazzo.edublogs.org/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- broken: true
+  feed_url: https://blog.cengage.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://www.opencolleges.edu.au/blogs/articles.atom
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+- feed_url: https://www.edsurge.com/articles_rss
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://www.stevehargadon.com/feeds/posts/default
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+- feed_url: https://symondsresearch.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- broken: true
+  feed_url: http://www.cultofpedagogy.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://shakeuplearning.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://poweredutoday.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://dianeravitch.net/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://brightclassroomideas.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://world-education-blog.org/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://feeds.feedburner.com/catlintucker
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://educationrickshaw.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://smartclassroommanagement.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://campushunt.in/blog/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://pernillesripp.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://edtech4beginners.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://teachercast.net/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://caffeinatedrage.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://thetuitionteacher.com/blog/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/learning/rss.xml
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/learning/rss.xml
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://www.viewsonic.com/library/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://learnsomethinginteresting.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://rockntheboat.com/first-blog-post/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://nceatalk.org/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- broken: true
+  feed_url: https://educatetanzania.org/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://muhariefeffendi.wordpress.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+- feed_url: https://ssbt.edu.au/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://www.facultyfocus.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://www.coolcatteacher.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://apasseducation.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://distance-educator.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://feeds.feedburner.com/learningspy
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://educationitreporter.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- broken: true
+  feed_url: http://www.middleweb.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://ryan2point0.wordpress.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://esheninger.blogspot.com/feeds/posts/default?alt=rss
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://thejosevilson.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://www.eduwonk.com/feed
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- feed_url: https://www.resourceaholic.com/feeds/posts/default?alt=rss
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://askatechteacher.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - full_text_from_content
+  - labels_from_tags
+- broken: true
+  feed_url: https://classtechtips.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://elearninginfographics.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- broken: true
+  feed_url: https://www.gettingsmart.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors: []
+- feed_url: https://timmanson.wordpress.com/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
+- feed_url: https://eyeonearlychildhood.org/feed/
+  filter_strategy: IdFilterStrategy
+  fixed: true
+  processors:
+  - labels_from_tags
