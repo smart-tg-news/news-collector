@@ -38,6 +38,8 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
     Load crawler definitions from YAML, auto-detect best processors,
     update config when necessary, and return instantiated crawlers.
     """
+    logger.info("Start building crawlers")
+
     # Load existing YAML config
     with open(CONFIG_PATH) as f:
         config = yaml.safe_load(f)
@@ -72,55 +74,59 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
         if fixed:
             processors = configured_processors
         else:
-            # Auto-detect vs testable processors
-            testable = [full_text_from_content, labels_from_tags]
-            good = []
-            for proc in testable:
-                try:
-                    crawler = RSSCrawler(
-                        feed_url=feed_url,
-                        filter_strategy=None,
-                        processors=[proc],
-                    )
-                    # if this throws FieldProcessorException, it means proc isn't supported
+            # check if we can fetch the feed and page urls successfully
+            crawler = RSSCrawler(feed_url=feed_url)
+            try:
+                await crawler.fetch_new()
+            except FetchException:
+                logger.warning(f"Feed {feed_url} broken")
+                broken = True
+                entry['broken'] = True
+                updated = True
+
+            if not broken:
+                # Auto-detect processors which can be used
+                testable = [full_text_from_content, labels_from_tags]
+                good = []
+                for proc in testable:
                     try:
+                        crawler = RSSCrawler(
+                            feed_url=feed_url,
+                            filter_strategy=None,
+                            processors=[proc],
+                        )
                         await crawler.fetch_new()
-                    except FetchException:
-                        logger.warning(f"Feed {feed_url} broken")
-                        broken = True
-                        entry['broken'] = True
-                        updated = True
-                        break
-                except FieldProcessorException:
-                    continue
-                else:
-                    good.append(proc)
+                    # if fetch throws FieldProcessorException, proc isn't supported
+                    except FieldProcessorException:
+                        continue
+                    else:
+                        good.append(proc)
 
-            # TODO: FUUUUUCK sometimes different feed entries can have or not have tags.
-            # This means that we wont apply tag processor yet many entries require that.
-            # Apparently we should use the tag processor for such feed to without
-            # raising if no tag found. Same problem might occur with other processors i guess
+                # TODO: FUUUUUCK sometimes different feed entries can have or not have tags.
+                # This means that we wont apply tag processor yet many entries require that.
+                # Apparently we should use the tag processor for such feed to without
+                # raising if no tag found. Same problem might occur with other processors i guess
 
-            # Filter out duplicates from configured processors
-            unique_configured = [p for p in configured_processors if p not in good]
-            # Combine auto-detected + explicitly configured
-            processors = good + unique_configured
+                # Filter out duplicates from configured processors
+                unique_configured = [p for p in configured_processors if p not in good]
+                # Combine auto-detected + explicitly configured
+                processors = good + unique_configured
 
-            # Update YAML config
-            entry['processors'] = []
-            for p in processors:
-                if hasattr(p, 'func') and p.func is set_explicit_label:
-                    # Extract the bound 'label' argument
-                    label_val = p.keywords.get('label')
-                    entry['processors'].append({ 'set_explicit_label': label_val })
-                else:
-                    # Find by value in registry
-                    for name, fn in PROCESSOR_REGISTRY.items():
-                        if fn is p:
-                            entry['processors'].append(name)
-                            break
-            entry['fixed'] = True
-            updated = True
+                # Update YAML config
+                entry['processors'] = []
+                for p in processors:
+                    if hasattr(p, 'func') and p.func is set_explicit_label:
+                        # Extract the bound 'label' argument
+                        label_val = p.keywords.get('label')
+                        entry['processors'].append({ 'set_explicit_label': label_val })
+                    else:
+                        # Find by value in registry
+                        for name, fn in PROCESSOR_REGISTRY.items():
+                            if fn is p:
+                                entry['processors'].append(name)
+                                break
+                entry['fixed'] = True
+                updated = True
 
         # Instantiate the final crawler
         if not broken:
@@ -136,5 +142,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
     if updated:
         with open(CONFIG_PATH, 'w') as f:
             yaml.safe_dump(config, f)
+
+    logger.info(f"Successfully built {len(crawlers)} crawlers")
 
     return crawlers

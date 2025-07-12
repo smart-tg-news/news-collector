@@ -21,9 +21,6 @@ logger = logging.getLogger(__name__)
 
 class FetchException(Exception):
     ...
-
-class NormalizeException(Exception):
-    ...
     
 
 class RSSCrawler(BaseCrawler):
@@ -56,11 +53,11 @@ class RSSCrawler(BaseCrawler):
         try:
             feed = await self._fetch_feed()
         except FetchException:
-            logger.warn(f"Fetch exception for {self.feed_url}")
+            logger.warning(f"Couldn't fetch feed for {self.feed_url}")
             raise FetchException
         logger.info(f"Fetched {len(feed.entries)} items for {self.feed_url}")
         
-        # with open("/home/koldi/se/news-collector/feed_samples/blog_ed.json", 'w') as f:
+        # with open("/home/koldi/se/news-collector/feed_samples/languagemagazine.json", 'w') as f:
         #     f.write(self.feed_to_json(feed))
 
         # different filter logic for different feeds
@@ -70,11 +67,14 @@ class RSSCrawler(BaseCrawler):
 
         items = []
         for entry in filtered_feed_entries:
-            try:
-                normalized_entry = self._normalize(entry)
+            normalized_entry = self._normalize(entry)
+            if normalized_entry:
                 items.append(normalized_entry)
-            except NormalizeException:
-                pass
+
+        if len(items) < len(filtered_feed_entries) // 2:
+            logger.warning(f"Wasn't able to normalize enough entries from {self.feed_url}")
+            raise FetchException
+            
         return items
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
@@ -125,6 +125,7 @@ class RSSCrawler(BaseCrawler):
         # if no text provided, fetch from url
         if not processed_data["full_text"] and processed_data["url"]:
             # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
+            # Also play around with threading since right now this is blocking
             page = trafilatura.fetch_url(processed_data["url"])
             if page is not None:
                 processed_data["full_text"] = trafilatura.extract(page)
@@ -133,7 +134,7 @@ class RSSCrawler(BaseCrawler):
         # if any of these fields is missing, news item is broken
         required_keys = ["title", "url", "summary", "full_text"]
         if not all([processed_data[key] for key in required_keys]):
-            raise NormalizeException
+            return None
 
         return NewsItem(**processed_data)
     
