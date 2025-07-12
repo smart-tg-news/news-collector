@@ -2,8 +2,8 @@ import logging
 from datetime import datetime
 from typing import List, Optional
 from dataclasses import asdict
-from collections import defaultdict
 import json
+import trafilatura
 
 import aiohttp
 import asyncio
@@ -22,6 +22,9 @@ logger = logging.getLogger(__name__)
 class FetchException(Exception):
     ...
 
+class NormalizeException(Exception):
+    ...
+    
 
 class RSSCrawler(BaseCrawler):
     def __init__(
@@ -37,7 +40,7 @@ class RSSCrawler(BaseCrawler):
         self.processors = processors or []
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
-        timeout = aiohttp.ClientTimeout(total=5)
+        timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 async with session.get(self.feed_url) as resp:
@@ -53,8 +56,9 @@ class RSSCrawler(BaseCrawler):
         try:
             feed = await self._fetch_feed()
         except FetchException:
+            logger.warn(f"Fetch exception for {self.feed_url}")
             raise FetchException
-        logger.info("Fetched %d items", len(feed.entries))
+        logger.info(f"Fetched {len(feed.entries)} items for {self.feed_url}")
         
         # with open("/home/koldi/se/news-collector/feed_samples/blog_ed.json", 'w') as f:
         #     f.write(self.feed_to_json(feed))
@@ -63,11 +67,14 @@ class RSSCrawler(BaseCrawler):
         filtered_feed_entries = feed.entries
         if (self.filter_strategy is not None) and (feed.entries):
             filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
-        logger.info("Left %d items after filtering", len(filtered_feed_entries))
 
         items = []
         for entry in filtered_feed_entries:
-            items.append(self._normalize(entry))
+            try:
+                normalized_entry = self._normalize(entry)
+                items.append(normalized_entry)
+            except NormalizeException:
+                pass
         return items
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
@@ -95,7 +102,7 @@ class RSSCrawler(BaseCrawler):
         dict_data = [asdict(entry) for entry in data]
         if dict_data:
             collection.insert_many(dict_data)
-        logger.info(f"Saved {len(dict_data)} news to db")
+        logger.info(f"Saved {len(dict_data)} news to db for {self.feed_url}")
     
     def _normalize(self, raw_data) -> NewsItem:
         published = raw_data.published_parsed
@@ -105,7 +112,7 @@ class RSSCrawler(BaseCrawler):
         processed_data = {}
         processed_data["title"]        = raw_data.get("title", "")
         processed_data["url"]          = raw_data.get("link", "")
-        processed_data["summary"]      = raw_data.get("summary")
+        processed_data["summary"]      = raw_data.get("summary", "")
         processed_data["publish_date"] = publish_date
         processed_data["full_text"]    = str()
         # if new fields are defined, put them inside meta
@@ -114,6 +121,19 @@ class RSSCrawler(BaseCrawler):
         # call proccessors to fill extra fields in processed data
         for proc in self.processors:
             proc(raw_data, processed_data)
+
+        # if no text provided, fetch from url
+        if not processed_data["full_text"] and processed_data["url"]:
+            # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
+            page = trafilatura.fetch_url(processed_data["url"])
+            if page is not None:
+                processed_data["full_text"] = trafilatura.extract(page)
+                processed_data["meta"]["full_text_from_url"] = True
+
+        # if any of these fields is missing, news item is broken
+        required_keys = ["title", "url", "summary", "full_text"]
+        if not all([processed_data[key] for key in required_keys]):
+            raise NormalizeException
 
         return NewsItem(**processed_data)
     

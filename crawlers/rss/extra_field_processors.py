@@ -1,4 +1,5 @@
 from typing import Protocol, Dict, Any
+import trafilatura
 
 
 class FieldProcessorException(Exception):
@@ -24,6 +25,8 @@ Various processors implemeting the
 Processor signature
 """
 def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
+    text_plain = False
+    
     try:
         content_list = raw["content"]
     except KeyError:
@@ -35,6 +38,7 @@ def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     for i, content_entry in enumerate(content_list):
         if (content_type := content_entry.get("type")) is not None:
             if content_type == "text_plain":
+                text_plain = True
                 entry_idx = i
                 break
     content = content_list[entry_idx]
@@ -48,6 +52,10 @@ def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     except KeyError:
         raise FieldProcessorException(
             'Field "content.value" not found in feed entry')
+    
+    # remove html from text if not already
+    if not text_plain:
+        full_text = trafilatura.extract(full_text, fast=False)
     
     # key corresponds to NewsItem field
     parsed["full_text"] = full_text
