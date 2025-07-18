@@ -5,7 +5,7 @@ from datetime import datetime
 import asyncio
 
 
-DB_PATH = Path(__file__).resolve().parent / 'feeds.db'
+DB_PATH = Path(__file__).resolve().parent / 'feeds_test.db'
 
 class CrawlerDB:
     """
@@ -22,7 +22,10 @@ class CrawlerDB:
         """
         Open connection, set PRAGMAs, and create table if it doesn't exist.
         """
-        self.conn = await aiosqlite.connect(self.db_path)
+        self.conn = await aiosqlite.connect(
+            self.db_path, 
+            isolation_level=None
+        )
         await self.conn.execute("PRAGMA journal_mode=WAL;")
         await self.conn.execute("PRAGMA foreign_keys = ON;")
         # Create tables
@@ -81,16 +84,20 @@ class CrawlerDB:
 
         # lock prevents starting transaction within transaction 
         async with self._write_lock:
-            await self.conn.execute("BEGIN;")
-            await self.conn.execute(
-                "DELETE FROM seen_item_ids WHERE feed_id = ?",
-                (feed_id,)
-            )
-            await self.conn.executemany(
-                "INSERT INTO seen_item_ids(feed_id, guid) VALUES (?, ?)",
-                [(feed_id, guid) for guid in guids]
-            )
-            await self.conn.commit()
+            try:
+                await self.conn.execute("BEGIN;")
+                await self.conn.execute(
+                    "DELETE FROM seen_item_ids WHERE feed_id = ?",
+                    (feed_id,)
+                )
+                await self.conn.executemany(
+                    "INSERT INTO seen_item_ids(feed_id, guid) VALUES (?, ?)",
+                    [(feed_id, guid) for guid in guids]
+                )
+                await self.conn.commit()
+            except Exception:
+                await self.conn.rollback()
+                raise
 
 
     """ Methods for publish-date-based filtering """
@@ -117,12 +124,18 @@ class CrawlerDB:
         Store or update the latest publish date for a given feed_id.
         """
         iso_dt = latest_date.isoformat()
-        await self.conn.execute("""
-            INSERT INTO feed_latest_dates(feed_id, latest_date)
-            VALUES (?, ?)
-            ON CONFLICT(feed_id) DO UPDATE SET latest_date = excluded.latest_date;
-        """, (feed_id, iso_dt))
-        await self.conn.commit()
+        async with self._write_lock:
+            try:
+                await self.conn.execute("BEGIN;")
+                await self.conn.execute("""
+                    INSERT INTO feed_latest_dates(feed_id, latest_date)
+                    VALUES (?, ?)
+                    ON CONFLICT(feed_id) DO UPDATE SET latest_date = excluded.latest_date;
+                """, (feed_id, iso_dt))
+                await self.conn.commit()
+            except Exception:
+                await self.conn.rollback()
+                raise
 
 
     """
