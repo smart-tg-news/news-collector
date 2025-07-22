@@ -1,9 +1,6 @@
 import asyncio
 from dotenv import load_dotenv
 import logging
-
-from scheduler.app import CrawlerScheduler
-from db.client import MongoClientSingleton
     
 
 logging.basicConfig(
@@ -18,6 +15,11 @@ logger = logging.getLogger(__name__)
 if __name__ == "__main__":
     # load global env
     load_dotenv()
+
+    # local imports after setting the environment
+    from scheduler.app import CrawlerScheduler
+    from db.client import MongoClientSingleton
+
     # init DB
     MongoClientSingleton.init()
     # instantiate scheduler
@@ -26,6 +28,11 @@ if __name__ == "__main__":
     # create a fresh event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
+
+    # asyncio loop config
+    loop.set_debug(True)
+    # warn if any callback (including job dispatch) takes >100 ms
+    loop.slow_callback_duration = 30.0  
 
     try:
         # schedule the “start” coroutine and run forever
