@@ -68,7 +68,6 @@ def labels_from_tags(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
         raise FieldProcessorException(
             'Field "tags" not found in feed entry')
     assert isinstance(tags, list)
-    assert "term" in tags[0].keys()
 
     labels = [tag["term"] for tag in tags]
 
