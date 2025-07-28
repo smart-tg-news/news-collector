@@ -4,7 +4,6 @@ from typing import List, Optional
 from dataclasses import asdict
 import json
 import trafilatura
-from functools import lru_cache
 
 import aiohttp
 import asyncio
@@ -12,6 +11,7 @@ import feedparser
 
 from models.news_item import NewsItem
 from db.client import MongoClientSingleton
+from utils.http_session import get_shared_session
 from utils.trafilatura import get_trafilatura_config
 from utils.config import cfg
 from ..base import BaseCrawler
@@ -22,21 +22,6 @@ from .filter import FilterStrategy
 logger = logging.getLogger(__name__)
 
 trafilatura_conf =  get_trafilatura_config()
-
-
-
-""" Single ClientSession for all crawlers and requests """
-@lru_cache(maxsize=1)
-def get_shared_session() -> aiohttp.ClientSession:
-    connector = aiohttp.TCPConnector(limit_per_host=200)
-    timeout   = aiohttp.ClientTimeout(total=30)
-    return aiohttp.ClientSession(connector=connector, timeout=timeout)
-
-async def close_shared_session() -> None:
-    sess = get_shared_session()
-    await sess.close()
-    get_shared_session.cache_clear()
-
 
 
 class FetchException(Exception):

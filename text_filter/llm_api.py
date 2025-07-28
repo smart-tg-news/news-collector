@@ -4,6 +4,7 @@ import logging
 import os
 from aiolimiter import AsyncLimiter
 
+from utils.http_session import get_shared_session
 from utils.config import cfg
 
 
@@ -54,6 +55,7 @@ class TextFilter:
             "HTTP-Referer": "https://github.com/smart-tg-news/news-collector",
             "X-Title": "SmartDigest News Summarizer"
         }
+        self.session = get_shared_session()
 
     async def check(self, text: str) -> bool:
         """
@@ -97,32 +99,33 @@ class TextFilter:
         if self.model.endswith(":free"):
             rate_limiter = _OPENROUTER_RATE_LIMITER_FREE
 
-        timeout = aiohttp.ClientTimeout(total=10)
-        async with aiohttp.ClientSession(headers=self.headers, timeout=timeout) as session:
-            for attempt in range(1, self.max_retries + 1):
-                async with rate_limiter:
-                    try:
-                        async with session.post(self.base_url, json=payload) as resp:
-                            resp.raise_for_status()
-                            return await resp.json()
+        for attempt in range(1, self.max_retries + 1):
+            async with rate_limiter:
+                try:
+                    async with self.session.post(
+                            self.base_url, 
+                            json=payload, 
+                            headers=self.headers) as resp:
+                        resp.raise_for_status()
+                        return await resp.json()
 
-                    except aiohttp.ClientResponseError as http_err:
-                        status = http_err.status
-                        # Retry on rate limit or server errors
-                        if status in (429, 503):
-                            wait = self.backoff_factor * (2 ** (attempt - 1))
-                            logging.warning(f"Transient HTTP error {status}, retrying in {wait}s...")
-                            await asyncio.sleep(wait)
-                            continue
-                        # Non-retryable HTTP errors
-                        raise
-
-                    except (aiohttp.ClientError, asyncio.TimeoutError) as req_err:
-                        # Network or timeout errors
+                except aiohttp.ClientResponseError as http_err:
+                    status = http_err.status
+                    # Retry on rate limit or server errors
+                    if status in (429, 503):
                         wait = self.backoff_factor * (2 ** (attempt - 1))
-                        logging.warning(f"Network error: {req_err}, retrying in {wait}s...")
+                        logging.warning(f"Transient HTTP error {status}, retrying in {wait}s...")
                         await asyncio.sleep(wait)
                         continue
+                    # Non-retryable HTTP errors
+                    raise
+
+                except (aiohttp.ClientError, asyncio.TimeoutError) as req_err:
+                    # Network or timeout errors
+                    wait = self.backoff_factor * (2 ** (attempt - 1))
+                    logging.warning(f"Network error: {req_err}, retrying in {wait}s...")
+                    await asyncio.sleep(wait)
+                    continue
 
             # Exceeded retries
             raise RuntimeError("Failed to get a valid response from OpenRouter after retries")

@@ -56,7 +56,7 @@ if __name__ == "__main__":
         loop.run_until_complete(crawler_scheduler.stop())
         logging.info("Scheduler stopped")
 
-        from crawlers.rss.rss import close_shared_session
+        from utils.http_session import close_shared_session
         loop.run_until_complete(close_shared_session())
 
         # close db connection
