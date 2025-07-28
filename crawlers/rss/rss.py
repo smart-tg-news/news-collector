@@ -4,6 +4,7 @@ from typing import List, Optional
 from dataclasses import asdict
 import json
 import trafilatura
+from functools import lru_cache
 
 import aiohttp
 import asyncio
@@ -23,6 +24,21 @@ logger = logging.getLogger(__name__)
 trafilatura_conf =  get_trafilatura_config()
 
 
+
+""" Single ClientSession for all crawlers and requests """
+@lru_cache(maxsize=1)
+def get_shared_session() -> aiohttp.ClientSession:
+    connector = aiohttp.TCPConnector(limit_per_host=200)
+    timeout   = aiohttp.ClientTimeout(total=30)
+    return aiohttp.ClientSession(connector=connector, timeout=timeout)
+
+async def close_shared_session() -> None:
+    sess = get_shared_session()
+    await sess.close()
+    get_shared_session.cache_clear()
+
+
+
 class FetchException(Exception):
     ...
     
@@ -39,16 +55,15 @@ class RSSCrawler(BaseCrawler):
         self.source = feed_url
         self.filter_strategy = filter_strategy
         self.processors = processors or []
+        self.session = get_shared_session()
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
-        timeout = aiohttp.ClientTimeout(total=30)
-        async with aiohttp.ClientSession(timeout=timeout) as session:
-            try:
-                async with session.get(self.feed_url) as resp:
-                    resp.raise_for_status()
-                    text = await resp.text()
-            except (asyncio.TimeoutError, aiohttp.ClientResponseError, aiohttp.ClientError):
-                raise FetchException("Timeout fetching feed")
+        try:
+            async with self.session.get(self.feed_url) as resp:
+                resp.raise_for_status()
+                text = await resp.text()
+        except (asyncio.TimeoutError, aiohttp.ClientResponseError, aiohttp.ClientError):
+            raise FetchException("Timeout fetching feed")
         return feedparser.parse(text)
 
     async def fetch_new(self) -> List[NewsItem]:
