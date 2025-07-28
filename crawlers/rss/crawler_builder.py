@@ -3,6 +3,7 @@ from functools import partial
 from typing import List, Dict, Any
 import logging
 
+from utils.config import cfg
 from .filter import IdFilterStrategy, PublishDateFilterStrategy
 from .extra_field_processors import (
     full_text_from_content,
@@ -17,7 +18,7 @@ logger = logging.getLogger(__name__)
 
 
 # Path to YAML config for RSS feeds
-CONFIG_PATH = 'config/rss_feeds.yml'
+FEEDS_CONFIG_PATH = cfg.feeds_config_path
 
 # Registry mapping names in YAML to actual processor callables
 PROCESSOR_REGISTRY: Dict[str, Any] = {
@@ -41,7 +42,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
     logger.info("Start building crawlers")
 
     # Load existing YAML config
-    with open(CONFIG_PATH) as f:
+    with open(FEEDS_CONFIG_PATH) as f:
         config = yaml.safe_load(f)
 
     crawlers: List[RSSCrawler] = []
@@ -70,6 +71,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
                 fn = PROCESSOR_REGISTRY[name]
                 # Wrap with partial to bind label parameter
                 configured_processors.append(partial(fn, label=param))
+        configured_processors.extend([full_text_from_content, labels_from_tags])
 
         if fixed:
             processors = configured_processors
@@ -86,7 +88,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
 
             if not broken:
                 # Auto-detect processors which can be used
-                testable = [full_text_from_content, labels_from_tags]
+                testable = []
                 good = []
                 for proc in testable:
                     try:
@@ -140,7 +142,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
 
     # If any new configs were fixed, write back to YAML
     if updated:
-        with open(CONFIG_PATH, 'w') as f:
+        with open(FEEDS_CONFIG_PATH, 'w') as f:
             yaml.safe_dump(config, f)
 
     logger.info(f"Successfully built {len(crawlers)} crawlers")

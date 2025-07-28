@@ -11,12 +11,16 @@ import feedparser
 
 from models.news_item import NewsItem
 from db.client import MongoClientSingleton
+from utils.trafilatura import get_trafilatura_config
+from utils.config import cfg
 from ..base import BaseCrawler
 from .extra_field_processors import Processor
 from .filter import FilterStrategy
 
 
 logger = logging.getLogger(__name__)
+
+trafilatura_conf =  get_trafilatura_config()
 
 
 class FetchException(Exception):
@@ -37,27 +41,25 @@ class RSSCrawler(BaseCrawler):
         self.processors = processors or []
 
     async def _fetch_feed(self) -> feedparser.FeedParserDict:
-        timeout = aiohttp.ClientTimeout(total=10)
+        timeout = aiohttp.ClientTimeout(total=30)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             try:
                 async with session.get(self.feed_url) as resp:
                     resp.raise_for_status()
                     text = await resp.text()
             except (asyncio.TimeoutError, aiohttp.ClientResponseError, aiohttp.ClientError):
-                raise FetchException(
-                    f"Timeout fetching feed at {self.feed_url}"
-                )
+                raise FetchException("Timeout fetching feed")
         return feedparser.parse(text)
 
     async def fetch_new(self) -> List[NewsItem]:
         try:
             feed = await self._fetch_feed()
-        except FetchException:
-            logger.warning(f"Couldn't fetch feed for {self.feed_url}")
+        except FetchException as e:
+            logger.warning(f"Couldn't fetch feed for {self.feed_url}: {e}")
             raise FetchException
         logger.info(f"Fetched {len(feed.entries)} items for {self.feed_url}")
         
-        # with open("/home/koldi/se/news-collector/feed_samples/languagemagazine.json", 'w') as f:
+        # with open("/home/koldi/se/news-collector/feed_samples/tmz.json", 'w') as f:
         #     f.write(self.feed_to_json(feed))
 
         # different filter logic for different feeds
@@ -96,8 +98,8 @@ class RSSCrawler(BaseCrawler):
 
     def save_data(self, data: List[NewsItem]) -> None:
         mongo_client = MongoClientSingleton()
-        database = mongo_client["Prod"]
-        collection = database["news_raw"]
+        database = mongo_client[cfg.mongo_db]
+        collection = database[cfg.mongo_table]
 
         dict_data = [asdict(entry) for entry in data]
         if dict_data:
@@ -105,7 +107,7 @@ class RSSCrawler(BaseCrawler):
         logger.info(f"Saved {len(dict_data)} news to db for {self.feed_url}")
     
     def _normalize(self, raw_data) -> NewsItem:
-        published = raw_data.published_parsed
+        published = raw_data.get("published_parsed")
         publish_date = datetime(*published[:6]) if published else datetime.now()
 
         # base fields, present in all feeds
@@ -126,9 +128,9 @@ class RSSCrawler(BaseCrawler):
         if not processed_data["full_text"] and processed_data["url"]:
             # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
             # Also play around with threading since right now this is blocking
-            page = trafilatura.fetch_url(processed_data["url"])
+            page = trafilatura.fetch_url(processed_data["url"], config=trafilatura_conf)
             if page is not None:
-                processed_data["full_text"] = trafilatura.extract(page)
+                processed_data["full_text"] = trafilatura.extract(page, config=trafilatura_conf)
                 processed_data["meta"]["full_text_from_url"] = True
 
         # if any of these fields is missing, news item is broken

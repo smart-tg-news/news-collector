@@ -4,6 +4,8 @@ import logging
 import os
 from aiolimiter import AsyncLimiter
 
+from utils.config import cfg
+
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +14,8 @@ BASE_URL = os.getenv("OPENROUTER_BASE_URL", default="https://openrouter.ai/api/v
 
 
 # 20 requests per 60 seconds, shared across the entire process
-_OPENROUTER_LIMITER = AsyncLimiter(max_rate=20, time_period=60)
+_OPENROUTER_RATE_LIMITER_FREE = AsyncLimiter(max_rate=20, time_period=60)
+_OPENROUTER_RATE_LIMITER_PAID = AsyncLimiter(max_rate=120, time_period=60)
 
 
 class TextFilter:
@@ -36,7 +39,7 @@ class TextFilter:
         self,
         api_key: str = API_KEY,
         base_url: str = BASE_URL,
-        model: str = "mistralai/mistral-small-3.2-24b-instruct:free",
+        model: str = cfg.filter_llm,
         max_retries: int = 3,
         backoff_factor: float = 3.0,
     ):
@@ -67,7 +70,7 @@ class TextFilter:
             response = await self._request(messages)
             content = response["choices"][0]["message"]["content"].strip().lower()
         except Exception as e:
-            logging.error(f"Article filter failed: {e}")
+            logging.error(f"Article check failed: {e}")
             return True
 
         # Normalize and fallback parsing
@@ -90,11 +93,14 @@ class TextFilter:
             "temperature": 0.0,
             "top_p": 1.0,
         }
+        rate_limiter = _OPENROUTER_RATE_LIMITER_PAID
+        if self.model.endswith(":free"):
+            rate_limiter = _OPENROUTER_RATE_LIMITER_FREE
 
         timeout = aiohttp.ClientTimeout(total=10)
         async with aiohttp.ClientSession(headers=self.headers, timeout=timeout) as session:
             for attempt in range(1, self.max_retries + 1):
-                async with _OPENROUTER_LIMITER:
+                async with rate_limiter:
                     try:
                         async with session.post(self.base_url, json=payload) as resp:
                             resp.raise_for_status()

@@ -75,38 +75,26 @@ feeds:
 - broken: true
   feed_url: https://blog.ed.gov/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://theeducatorsroom.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
   processors:
   - labels_from_tags
-- feed_url: https://www.teachertoolkit.co.uk/feed/
+- broken: true
+  feed_url: https://www.teachertoolkit.co.uk/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors:
-  - labels_from_tags
-- feed_url: https://www.edtechreview.in/feed/
+- broken: true
+  feed_url: https://www.edtechreview.in/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors:
-  - labels_from_tags
-- feed_url: https://languagemagazine.com/feed/
+- broken: true
+  feed_url: https://languagemagazine.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors:
-  - labels_from_tags
 - broken: true
   feed_url: https://larryferlazzo.edublogs.org/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - broken: true
   feed_url: https://blog.cengage.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://www.opencolleges.edu.au/blogs/articles.atom
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -131,8 +119,6 @@ feeds:
 - broken: true
   feed_url: http://www.cultofpedagogy.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://shakeuplearning.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -212,14 +198,9 @@ feeds:
   fixed: true
   processors:
   - labels_from_tags
-- feed_url: https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/learning/rss.xml
+- broken: true
+  feed_url: https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/learning/rss.xml
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
-- feed_url: https://www.nytimes.com/svc/collections/v1/publish/https://www.nytimes.com/section/learning/rss.xml
-  filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://www.viewsonic.com/library/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -246,18 +227,14 @@ feeds:
 - broken: true
   feed_url: https://educatetanzania.org/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://muhariefeffendi.wordpress.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
   processors:
   - full_text_from_content
-- feed_url: https://ssbt.edu.au/feed/
+- broken: true
+  feed_url: https://ssbt.edu.au/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors:
-  - labels_from_tags
 - feed_url: https://www.facultyfocus.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -270,12 +247,9 @@ feeds:
   processors:
   - full_text_from_content
   - labels_from_tags
-- feed_url: https://apasseducation.com/feed/
+- broken: true
+  feed_url: https://apasseducation.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors:
-  - full_text_from_content
-  - labels_from_tags
 - feed_url: https://distance-educator.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -296,8 +270,6 @@ feeds:
 - broken: true
   feed_url: http://www.middleweb.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://ryan2point0.wordpress.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -334,8 +306,6 @@ feeds:
 - broken: true
   feed_url: https://classtechtips.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://elearninginfographics.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true
@@ -344,8 +314,6 @@ feeds:
 - broken: true
   feed_url: https://www.gettingsmart.com/feed/
   filter_strategy: IdFilterStrategy
-  fixed: true
-  processors: []
 - feed_url: https://timmanson.wordpress.com/feed/
   filter_strategy: IdFilterStrategy
   fixed: true

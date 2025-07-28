@@ -1,6 +1,10 @@
 from typing import Protocol, Dict, Any
 import trafilatura
 
+from utils.trafilatura import get_trafilatura_config
+
+
+trafilatura_conf =  get_trafilatura_config()
 
 class FieldProcessorException(Exception):
     pass
@@ -30,8 +34,9 @@ def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     try:
         content_list = raw["content"]
     except KeyError:
-        raise FieldProcessorException(
-            'Field "content" not found in feed entry')
+        return
+        # raise FieldProcessorException(
+        #     'Field "content" not found in feed entry')
     
     # if multiple content items, pick the one with plain text
     entry_idx = 0
@@ -50,12 +55,13 @@ def full_text_from_content(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     try:
         full_text = content["value"]
     except KeyError:
-        raise FieldProcessorException(
-            'Field "content.value" not found in feed entry')
+        return
+        # raise FieldProcessorException(
+        #     'Field "content.value" not found in feed entry')
     
     # remove html from text if not already
     if not text_plain:
-        full_text = trafilatura.extract(full_text, fast=False)
+        full_text = trafilatura.extract(full_text, fast=False, config=trafilatura_conf)
     
     # key corresponds to NewsItem field
     parsed["full_text"] = full_text
@@ -65,8 +71,9 @@ def labels_from_tags(raw: Dict[str, Any], parsed: Dict[str, Any]) -> None:
     try:
         tags = raw["tags"]
     except KeyError:
-        raise FieldProcessorException(
-            'Field "tags" not found in feed entry')
+        return
+        # raise FieldProcessorException(
+        #     'Field "tags" not found in feed entry')
     assert isinstance(tags, list)
 
     labels = [tag["term"] for tag in tags]

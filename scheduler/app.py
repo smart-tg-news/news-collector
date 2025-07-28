@@ -8,14 +8,13 @@ from crawlers.rss.crawler_builder import build_rss_crawlers
 from crawlers.rss.rss import FetchException
 from text_filter.llm_api import TextFilter
 from .db import CrawlerDB
-from utils.config import load_config
+from utils.config import cfg
 
 
 logger = logging.getLogger(__name__)
 
 class CrawlerScheduler:
-    def __init__(self, config_path: str = "config/config.yaml"):
-        self.config: dict = load_config(config_path)
+    def __init__(self):
         self.scheduler: AsyncIOScheduler = AsyncIOScheduler()
         self.crawler_db = CrawlerDB()
 
@@ -33,9 +32,9 @@ class CrawlerScheduler:
             self.scheduler.add_job(
                 self._fetch_job, args=[crawler],
                 trigger = "interval",
-                minutes = self.config.get("interval_minutes", 60),
+                minutes = cfg.interval_minutes,
                 next_run_time = datetime.now(),
-                misfire_grace_time = 60.0,
+                misfire_grace_time = 60,
                 name = f"Fetch {crawler.feed_url}"
             )
 
@@ -47,11 +46,11 @@ class CrawlerScheduler:
             news = []
 
         # filter news based on text
-        article_filter = TextFilter()
+        llm_filter = TextFilter()
         news_filtered = []
         garbage_count = 0
         for entry in news:
-            if await article_filter.check(entry.full_text):
+            if await llm_filter.check(entry.full_text):
                 # news_filtered.append(entry)
                 entry.meta['garbage'] = False
             else:
@@ -59,7 +58,8 @@ class CrawlerScheduler:
                 entry.meta['garbage'] = True
                 garbage_count += 1
             news_filtered.append(entry)
-        # logger.info(f"{garbage_count} garbage articles out of {len(news)} for {crawler.feed_url}")
+        if garbage_count:
+            logger.info(f"{garbage_count} garbage articles out of {len(news)} for {crawler.feed_url}")
         if len(news_filtered) != len(news):
             logger.warning(f"Left {len(news_filtered)} news from {len(news)} for {crawler.feed_url}")
         crawler.save_data(news_filtered)

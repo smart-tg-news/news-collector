@@ -1,6 +1,9 @@
 import asyncio
 from dotenv import load_dotenv
 import logging
+import sys
+
+from utils import config
     
 
 logging.basicConfig(
@@ -13,6 +16,14 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 if __name__ == "__main__":
+    # load global config
+    config.init_config(yaml_path="config/config.yaml", args=sys.argv[1:])
+
+    from utils.config import cfg
+    logging.info(f"Running with debug={cfg.debug}")
+    if cfg.clean_crawler_db:
+        logging.info(f"Crawler db {cfg.crawler_db} will be cleaned")
+
     # load global env
     load_dotenv()
 

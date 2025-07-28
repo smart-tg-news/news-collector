@@ -4,8 +4,9 @@ from pathlib import Path
 from datetime import datetime
 import asyncio
 
+from utils.config import cfg
 
-DB_PATH = Path(__file__).resolve().parent / 'feeds_test.db'
+DB_PATH = Path(__file__).resolve().parent / cfg.crawler_db
 
 class CrawlerDB:
     """
