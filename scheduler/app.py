@@ -50,7 +50,15 @@ class CrawlerScheduler:
         news_filtered = []
         garbage_count = 0
         for entry in news:
-            if await llm_filter.check(entry.full_text):
+
+            check_result = False
+            try:
+                check_result = await llm_filter.check(entry.full_text)
+            except Exception as e:
+                logger.warning(f"LLM check failed with exception: {repr(e)} for article {entry.url}")
+                check_result = True
+
+            if check_result:
                 # news_filtered.append(entry)
                 entry.meta['garbage'] = False
             else:
@@ -58,6 +66,7 @@ class CrawlerScheduler:
                 entry.meta['garbage'] = True
                 garbage_count += 1
             news_filtered.append(entry)
+
         if garbage_count:
             logger.info(f"{garbage_count} garbage articles out of {len(news)} for {crawler.feed_url}")
         if len(news_filtered) != len(news):

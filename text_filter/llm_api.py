@@ -19,6 +19,19 @@ _OPENROUTER_RATE_LIMITER_FREE = AsyncLimiter(max_rate=20, time_period=60)
 _OPENROUTER_RATE_LIMITER_PAID = AsyncLimiter(max_rate=120, time_period=60)
 
 
+class APIError(Exception):
+    def __init__(self, code: int, message: str):
+        super().__init__(f"APIError {code}: {message}")
+        self.status = code
+        self.message = message
+
+class TransientAPIError(APIError):
+    pass
+
+class PermanentAPIError(APIError):
+    pass
+
+
 class TextFilter:
     """
     An async class to filter articles using the OpenRouter API.
@@ -42,7 +55,7 @@ class TextFilter:
         base_url: str = BASE_URL,
         model: str = cfg.filter_llm,
         max_retries: int = 3,
-        backoff_factor: float = 3.0,
+        backoff_factor: float = 4.0,
     ):
         self.api_key = api_key
         self.model = model
@@ -70,10 +83,14 @@ class TextFilter:
 
         try:
             response = await self._request(messages)
+        except Exception:
+            raise
+
+        try:
             content = response["choices"][0]["message"]["content"].strip().lower()
         except Exception as e:
-            logging.error(f"Article check failed: {e}")
-            return True
+            logger.warning(f"Failed to parse openrouter response: {response}")
+            raise
 
         # Normalize and fallback parsing
         if content not in ("good", "garbage"):
@@ -107,25 +124,42 @@ class TextFilter:
                             json=payload, 
                             headers=self.headers) as resp:
                         resp.raise_for_status()
-                        return await resp.json()
+                        data =  await resp.json()
+
+                        # 2xx code but API-level error
+                        if isinstance(data, dict) and "error" in data:
+                            err = data["error"]
+                            code = err.get("code", resp.status)
+                            message = err.get("message", "<no message>")
+                            # For server‑side or rate‑limit codes, raise so your retry loop catches it:
+                            if code in (429, 500, 503):
+                                raise TransientAPIError(code, message)
+                            else:
+                                # non‑retryable API error
+                                raise PermanentAPIError(code, message)
+                    
+                        return data
 
                 except aiohttp.ClientResponseError as http_err:
                     status = http_err.status
                     # Retry on rate limit or server errors
-                    if status in (429, 503):
+                    if status in (429, 500, 503):
                         wait = self.backoff_factor * (2 ** (attempt - 1))
-                        logging.warning(f"Transient HTTP error {status}, retrying in {wait}s...")
+                        logger.warning(f"Openrouter transient HTTP error {status}, retrying in {wait}s...")
                         await asyncio.sleep(wait)
                         continue
                     # Non-retryable HTTP errors
                     raise
 
-                except (aiohttp.ClientError, asyncio.TimeoutError) as req_err:
+                except (aiohttp.ClientError, asyncio.TimeoutError, TransientAPIError) as req_err:
                     # Network or timeout errors
                     wait = self.backoff_factor * (2 ** (attempt - 1))
-                    logging.warning(f"Network error: {req_err}, retrying in {wait}s...")
+                    logger.warning(f"Openrouter network error: {req_err}, retrying in {wait}s...")
                     await asyncio.sleep(wait)
                     continue
 
-            # Exceeded retries
-            raise RuntimeError("Failed to get a valid response from OpenRouter after retries")
+                except PermanentAPIError as e:
+                    raise
+
+        # Exceeded retries
+        raise RuntimeError("Failed to get a valid response from OpenRouter after retries")
