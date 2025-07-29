@@ -42,20 +42,45 @@ class RSSCrawler(BaseCrawler):
         self.processors = processors or []
         self.session = get_shared_session()
 
-    async def _fetch_feed(self) -> feedparser.FeedParserDict:
-        try:
-            async with self.session.get(self.feed_url) as resp:
-                resp.raise_for_status()
-                text = await resp.text()
-        except (asyncio.TimeoutError, aiohttp.ClientResponseError, aiohttp.ClientError):
-            raise FetchException("Timeout fetching feed")
-        return feedparser.parse(text)
+    async def _fetch_feed(self, max_retries: int = 3, backoff: float = 4.0) -> feedparser.FeedParserDict:
+
+        for attempt in range(1, max_retries + 1):
+            try:
+                async with self.session.get(self.feed_url) as resp:
+                    resp.raise_for_status()
+                    text = await resp.text()
+                return feedparser.parse(text)  
+            
+            except asyncio.TimeoutError as e:         # timeout
+                logger.warning(f"Timeout fetching feed {self.feed_url}, request took too long")
+
+            except aiohttp.ClientConnectionError as e: # e.g. DNS lookup failed, refused connection
+                logger.warning(f"Connection failed for feed {self.feed_url}")
+            
+            except aiohttp.ClientResponseError as e:  # HTTP-level error (4xx, 5xx)
+                if e.status != 429:  # only retryable status code
+                    raise FetchException( 
+                        f"HTTP {e.status} {e.message or e.request_info.real_url}"
+                    ) from e
+                else:
+                    logger.warning(f"Too many requests 429 when fetching {self.feed_url}")
+            
+            except aiohttp.ClientError as e:           # all other client‑side errors
+                raise FetchException(f"Client error ({e})") from e
+            
+            except Exception:                          # all other exceptions
+                raise
+            
+            if attempt < max_retries:
+                await asyncio.sleep(backoff)
+                backoff *= 2
+
 
     async def fetch_new(self) -> List[NewsItem]:
         try:
             feed = await self._fetch_feed()
         except FetchException as e:
-            logger.warning(f"Couldn't fetch feed for {self.feed_url}: {e}")
+            logger.warning(f"Error fetching feed for {self.feed_url}: {e}")
             raise FetchException
         logger.info(f"Fetched {len(feed.entries)} items for {self.feed_url}")
         
