@@ -49,7 +49,12 @@ class RSSCrawler(BaseCrawler):
                 async with self.session.get(self.feed_url) as resp:
                     resp.raise_for_status()
                     text = await resp.text()
-                return feedparser.parse(text)  
+
+                feed = feedparser.parse(text)  
+                if feed.bozo:
+                    bad_exc = feed.bozo_exception
+                    raise FetchException(f"Feed parse error ({bad_exc})")
+                return feed
             
             except asyncio.TimeoutError as e:         # timeout
                 logger.warning(f"Timeout fetching feed {self.feed_url}, request took too long")
