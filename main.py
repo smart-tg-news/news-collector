@@ -20,9 +20,9 @@ if __name__ == "__main__":
     config.init_config(yaml_path="config/config.yaml", args=sys.argv[1:])
 
     from utils.config import cfg
-    logging.info(f"Running with debug={cfg.debug}")
+    logger.info(f"Running with debug={cfg.debug}")
     if cfg.clean_crawler_db:
-        logging.info(f"Crawler db {cfg.crawler_db} will be cleaned")
+        logger.info(f"Crawler db {cfg.crawler_db} will be cleaned")
 
     # load global env
     load_dotenv()
@@ -50,11 +50,11 @@ if __name__ == "__main__":
         loop.create_task(crawler_scheduler.start())
         loop.run_forever()
     except (KeyboardInterrupt, SystemExit):
-        logging.info("Shutdown signal received")
+        logger.info("Shutdown signal received")
     finally:
         # synchronously wait for the async stop() to finish
         loop.run_until_complete(crawler_scheduler.stop())
-        logging.info("Scheduler stopped")
+        logger.info("Scheduler stopped")
 
         from utils.http_session import close_shared_session
         loop.run_until_complete(close_shared_session())

@@ -46,7 +46,7 @@ class PublishDateFilterStrategy(FilterStrategy):
 
         # check if 'published_parsed' field is present
         if not feed.entries[0].get("published_parsed"):
-            logging.warning(f'Field "published_parsed" not found in feed {feed_id}. '
+            logger.warning(f'Field "published_parsed" not found in feed {feed_id}. '
                              'No entries will be filtered based on publish date')
             return feed.entries
         
