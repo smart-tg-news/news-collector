@@ -1,6 +1,6 @@
 import logging
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 from dataclasses import asdict
 import json
 import trafilatura
@@ -89,7 +89,7 @@ class RSSCrawler(BaseCrawler):
             raise FetchException
         logger.info(f"Fetched {len(feed.entries)} items for {self.feed_url}")
         
-        # with open("/home/koldi/se/news-collector/feed_samples/tmz.json", 'w') as f:
+        # with open("/home/koldi/se/news-collector/feed_samples/nypost.json", 'w') as f:
         #     f.write(self.feed_to_json(feed))
 
         # different filter logic for different feeds
@@ -154,14 +154,7 @@ class RSSCrawler(BaseCrawler):
         for proc in self.processors:
             proc(raw_data, processed_data)
 
-        # if no text provided, fetch from url
-        if not processed_data["full_text"] and processed_data["url"]:
-            # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
-            # Also play around with threading since right now this is blocking
-            page = trafilatura.fetch_url(processed_data["url"], config=trafilatura_conf)
-            if page is not None:
-                processed_data["full_text"] = trafilatura.extract(page, config=trafilatura_conf)
-                processed_data["meta"]["full_text_from_url"] = True
+        self.extract_full_text(raw_data, processed_data)
 
         # if any of these fields is missing, news item is broken
         required_keys = ["title", "url", "summary", "full_text"]
@@ -169,6 +162,58 @@ class RSSCrawler(BaseCrawler):
             return None
 
         return NewsItem(**processed_data)
+
+    @staticmethod    
+    def extract_full_text(raw_data: Dict[str, Any], processed_data: Dict[str, Any]) -> None:
+        need_text_from_url = True
+        text_plain = False
+        if (content_list := raw_data.get("content")):
+
+            # if multiple content items, pick the one with plain text
+            entry_idx = 0
+            for i, content_entry in enumerate(content_list):
+                if content_entry.get("type") == "text_plain":
+                    text_plain = True
+                    entry_idx = i
+                    break
+            content = content_list[entry_idx]
+
+            if (content_value := content.get("value")):
+
+                # sometimes content value contains only summary, so we 
+                # want to fetch text from url despite having it in the feed
+                summary = raw_data.get("summary")
+                if content_value != summary: 
+                    need_text_from_url = False
+
+                if not text_plain:
+                    # content_value can still contain no html in which case
+                    # trafilatura breaks: prints error logs, returns None
+                    prev_disable = logging.root.manager.disable
+                    logging.disable(logging.ERROR)
+                    full_text = trafilatura.extract(content_value, 
+                                                    url=processed_data["url"], # for logs
+                                                    fast=False, 
+                                                    config=trafilatura_conf)
+                    logging.disable(prev_disable)
+
+                if not full_text:
+                    full_text = content_value
+                processed_data["full_text"] = full_text
+                    
+        # if no text provided or if text is same as summary, fetch from url
+        if (not processed_data["full_text"] or need_text_from_url) and processed_data["url"]:
+
+            # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
+            # Also play around with threading since right now this is blocking
+            page = trafilatura.fetch_url(processed_data["url"], config=trafilatura_conf)
+            if page is not None:
+                processed_data["full_text"] = trafilatura.extract(page, 
+                                                                  url=processed_data["url"], # for logs
+                                                                  fast=False, 
+                                                                  config=trafilatura_conf)
+                processed_data["meta"]["full_text_from_url"] = True
+                
     
     @staticmethod
     def feed_to_json(feed):
