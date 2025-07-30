@@ -23,7 +23,7 @@ FEEDS_CONFIG_PATH = cfg.feeds_config_path
 # Registry mapping names in YAML to actual processor callables
 PROCESSOR_REGISTRY: Dict[str, Any] = {
     'full_text_from_content': lambda x, y: ...,
-    'labels_from_tags': labels_from_tags,
+    'labels_from_tags': lambda x, y: ...,
     'set_explicit_label': set_explicit_label,  # requires partial
 }
 
@@ -71,7 +71,7 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
                 fn = PROCESSOR_REGISTRY[name]
                 # Wrap with partial to bind label parameter
                 configured_processors.append(partial(fn, label=param))
-        configured_processors.extend([labels_from_tags])
+        configured_processors.extend([])
 
         if fixed:
             processors = configured_processors

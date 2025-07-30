@@ -155,6 +155,7 @@ class RSSCrawler(BaseCrawler):
             proc(raw_data, processed_data)
 
         self.extract_full_text(raw_data, processed_data)
+        self.labels_from_tags(raw_data, processed_data)
 
         # if any of these fields is missing, news item is broken
         required_keys = ["title", "url", "summary", "full_text"]
@@ -162,6 +163,25 @@ class RSSCrawler(BaseCrawler):
             return None
 
         return NewsItem(**processed_data)
+    
+    @staticmethod
+    def labels_from_tags(raw_data: Dict[str, Any], processed_data: Dict[str, Any]) -> None:
+        try:
+            tags = raw_data["tags"]
+        except KeyError:
+            return
+
+        labels = [tag["term"] for tag in tags]
+
+        # if some labels were already present
+        if (prev_labels := processed_data["meta"].get("labels")):
+            if isinstance(prev_labels, list):
+                processed_data["meta"]["labels"].extend(labels)
+            else:
+                processed_data["meta"]["labels"] = labels + [prev_labels]
+        # if no labels were present
+        else:
+            processed_data["meta"]["labels"] = labels
 
     @staticmethod    
     def extract_full_text(raw_data: Dict[str, Any], processed_data: Dict[str, Any]) -> None:
