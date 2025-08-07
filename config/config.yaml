@@ -1,8 +1,8 @@
 interval_minutes: 30
 
-feeds_config_path: config/rss_feeds_test.yml
-crawler_db: feeds_test.db
-filter_ll: mistralai/mistral-small-3.2-24b-instruct:free
+feeds_config_path: config/rss_feeds_real_categories.yml
+crawler_db: feeds_real_categories.db
+filter_llm: mistralai/mistral-small-3.2-24b-instruct
 
 mongo_db: Test
-mongo_table: news_test
+mongo_table: news_real_categories

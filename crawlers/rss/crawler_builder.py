@@ -3,6 +3,7 @@ from functools import partial
 from typing import List, Dict, Any
 import logging
 
+from text_filter.llm_api import TextFilter
 from utils.config import cfg
 from .filter import IdFilterStrategy, PublishDateFilterStrategy
 from .extra_field_processors import (
@@ -46,102 +47,96 @@ async def build_rss_crawlers(db) -> List[RSSCrawler]:
         config = yaml.safe_load(f)
 
     crawlers: List[RSSCrawler] = []
-    updated = False
+    update_config = False
 
-    for entry in config.get('feeds', []):
-        feed_url = entry['feed_url']
-        fixed    = entry.get('fixed', False)
-        broken   = entry.get('broken', False)
+    for feed in config.get('feeds', []):
+        try:
+            feed_url = feed['feed_url']
+            fixed    = feed.get('fixed', False)
+            broken   = feed.get('broken', False)
 
-        if broken:
-            continue
+            if broken:
+                continue
 
-        # Instantiate filter strategy
-        strat_name = entry.get('filter_strategy', 'IdFilterStrategy')
-        StratCls = FILTER_STRATEGY_REGISTRY.get(strat_name, IdFilterStrategy)
-        filter_strategy = StratCls(db)
+            # Instantiate filter strategy
+            strat_name = feed.get('filter_strategy', 'IdFilterStrategy')
+            StratCls = FILTER_STRATEGY_REGISTRY.get(strat_name, IdFilterStrategy)
+            filter_strategy = StratCls(db)
 
-        # Parse any user-specified processors
-        configured_processors = []
-        for proc_cfg in entry.get('processors', []):
-            if isinstance(proc_cfg, str):
-                configured_processors.append(PROCESSOR_REGISTRY[proc_cfg])
-            elif isinstance(proc_cfg, dict):
-                name, param = next(iter(proc_cfg.items()))
-                fn = PROCESSOR_REGISTRY[name]
-                # Wrap with partial to bind label parameter
-                configured_processors.append(partial(fn, label=param))
-        configured_processors.extend([])
+            # Parse any user-specified processors
+            processors = []
+            for proc_cfg in feed.get('processors', []):
+                if isinstance(proc_cfg, str):
+                    processors.append(PROCESSOR_REGISTRY[proc_cfg])
+                elif isinstance(proc_cfg, dict):
+                    name, param = next(iter(proc_cfg.items()))
+                    fn = PROCESSOR_REGISTRY[name]
+                    # Wrap with partial to bind label parameter
+                    processors.append(partial(fn, label=param))
 
-        if fixed:
-            processors = configured_processors
-        else:
-            # check if we can fetch the feed and page urls successfully
-            crawler = RSSCrawler(feed_url=feed_url)
-            try:
-                await crawler.fetch_new()
-            except FetchException:
-                logger.warning(f"Feed {feed_url} broken")
-                broken = True
-                entry['broken'] = True
-                updated = True
+            if not fixed:
 
+                # check if we can fetch the feed successfully
+                crawler = RSSCrawler(feed_url=feed_url)
+                try:
+                    entries = await crawler.fetch_new(dry_run=True)
+                    if not entries:
+                        logger.warning(f"Got no entries from feed {crawler.feed_url}")
+                        broken = True
+                except FetchException:
+                    logger.warning(f"Feed {feed_url} broken")
+                    broken = True
+
+                if not broken:
+                    # check if we can normalise enough values
+                    normalised_entries = crawler.normalize_entries(entries)
+                    if len(normalised_entries) < len(entries) // 2:
+                        logger.warning(f"Wasn't able to normalize enough entries from {crawler.feed_url}")
+                        broken = True
+
+                    # check if articles are not garbage
+                    llm_filter = TextFilter()
+                    garbage_cnt = 0
+
+                    for entry in normalised_entries:
+                        is_garbage = True
+                        try:
+                            is_garbage = not await llm_filter.check(entry.full_text)
+                        except Exception:
+                            is_garbage = False
+
+                        if is_garbage:
+                            garbage_cnt += 1
+
+                    if garbage_cnt > len(normalised_entries) // 2:
+                        logger.warning(f"Too many garbage articles ({garbage_cnt} of {len(normalised_entries)})" 
+                                    f"in feed {crawler.feed_url}")
+                        broken = True   
+
+                if broken:
+                    feed['broken'] = True
+
+                feed['fixed'] = True
+                update_config = True
+
+            # Instantiate the final crawler
             if not broken:
-                # Auto-detect processors which can be used
-                testable = []
-                good = []
-                for proc in testable:
-                    try:
-                        crawler = RSSCrawler(
-                            feed_url=feed_url,
-                            filter_strategy=None,
-                            processors=[proc],
-                        )
-                        await crawler.fetch_new()
-                    # if fetch throws FieldProcessorException, proc isn't supported
-                    except FieldProcessorException:
-                        continue
-                    else:
-                        good.append(proc)
-
-                # TODO: FUUUUUCK sometimes different feed entries can have or not have tags.
-                # This means that we wont apply tag processor yet many entries require that.
-                # Apparently we should use the tag processor for such feed to without
-                # raising if no tag found. Same problem might occur with other processors i guess
-
-                # Filter out duplicates from configured processors
-                unique_configured = [p for p in configured_processors if p not in good]
-                # Combine auto-detected + explicitly configured
-                processors = good + unique_configured
-
-                # Update YAML config
-                entry['processors'] = []
-                for p in processors:
-                    if hasattr(p, 'func') and p.func is set_explicit_label:
-                        # Extract the bound 'label' argument
-                        label_val = p.keywords.get('label')
-                        entry['processors'].append({ 'set_explicit_label': label_val })
-                    else:
-                        # Find by value in registry
-                        for name, fn in PROCESSOR_REGISTRY.items():
-                            if fn is p:
-                                entry['processors'].append(name)
-                                break
-                entry['fixed'] = True
-                updated = True
-
-        # Instantiate the final crawler
-        if not broken:
-            crawlers.append(
-                RSSCrawler(
-                    feed_url=feed_url,
-                    filter_strategy=filter_strategy,
-                    processors=processors,
+                crawlers.append(
+                    RSSCrawler(
+                        feed_url=feed_url,
+                        filter_strategy=filter_strategy,
+                        processors=processors,
+                    )
                 )
-            )
+
+        except:
+            if update_config:
+                with open(FEEDS_CONFIG_PATH, 'w') as f:
+                    yaml.safe_dump(config, f)
+            raise
 
     # If any new configs were fixed, write back to YAML
-    if updated:
+    if update_config:
         with open(FEEDS_CONFIG_PATH, 'w') as f:
             yaml.safe_dump(config, f)
 

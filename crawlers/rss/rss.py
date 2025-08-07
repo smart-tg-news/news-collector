@@ -12,7 +12,7 @@ import feedparser
 from models.news_item import NewsItem
 from db.client import MongoClientSingleton
 from utils.http_session import get_shared_session
-from utils.trafilatura import get_trafilatura_config
+from utils.trafilatura import get_trafilatura_config, suppress_trafilatura_logs
 from utils.config import cfg
 from ..base import BaseCrawler
 from .extra_field_processors import Processor
@@ -80,8 +80,11 @@ class RSSCrawler(BaseCrawler):
                 await asyncio.sleep(backoff)
                 backoff *= 2
 
+        # if attempt limit is exceeded
+        raise FetchException
+    
 
-    async def fetch_new(self) -> List[NewsItem]:
+    async def fetch_new(self, dry_run=False) -> List[NewsItem]:
         try:
             feed = await self._fetch_feed()
         except FetchException as e:
@@ -94,20 +97,22 @@ class RSSCrawler(BaseCrawler):
 
         # different filter logic for different feeds
         filtered_feed_entries = feed.entries
-        if (self.filter_strategy is not None) and (feed.entries):
-            filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
+        if not dry_run:
+            if (self.filter_strategy is not None) and (feed.entries):
+                filtered_feed_entries = await self.filter_strategy.filter_new(feed, self.feed_url)
 
-        items = []
-        for entry in filtered_feed_entries:
-            normalized_entry = self._normalize(entry)
-            if normalized_entry:
-                items.append(normalized_entry)
+        # items = []
+        # for entry in filtered_feed_entries:
+        #     normalized_entry = self._normalize(entry)
+        #     if normalized_entry:
+        #         items.append(normalized_entry)
 
-        if len(items) < len(filtered_feed_entries) // 2:
-            logger.warning(f"Wasn't able to normalize enough entries from {self.feed_url}")
-            raise FetchException
+        # if len(items) < len(filtered_feed_entries) // 2:
+        #     logger.warning(f"Wasn't able to normalize enough entries from {self.feed_url}")
+        #     raise FetchException
             
-        return items
+        # return items
+        return filtered_feed_entries
 
     async def fetch_recent(self, lookback_hours: int) -> List[NewsItem]:
         feed = await self._fetch_feed()
@@ -209,13 +214,11 @@ class RSSCrawler(BaseCrawler):
                 if not text_plain:
                     # content_value can still contain no html in which case
                     # trafilatura breaks: prints error logs, returns None
-                    prev_disable = logging.root.manager.disable
-                    logging.disable(logging.ERROR)
-                    full_text = trafilatura.extract(content_value, 
-                                                    url=processed_data["url"], # for logs
-                                                    fast=False, 
-                                                    config=trafilatura_conf)
-                    logging.disable(prev_disable)
+                    with suppress_trafilatura_logs():
+                        full_text = trafilatura.extract(content_value, 
+                                                        url=processed_data["url"], # for logs
+                                                        fast=False, 
+                                                        config=trafilatura_conf)
 
                 if not full_text:
                     full_text = content_value
@@ -226,12 +229,18 @@ class RSSCrawler(BaseCrawler):
 
             # TODO: optionally play w/ User-Agent headers  or requests to bypass 403
             # Also play around with threading since right now this is blocking
-            page = trafilatura.fetch_url(processed_data["url"], config=trafilatura_conf)
+            with suppress_trafilatura_logs(level=logging.WARNING):
+                page = trafilatura.fetch_url(processed_data["url"], config=trafilatura_conf)
             if page is not None:
-                processed_data["full_text"] = trafilatura.extract(page, 
-                                                                  url=processed_data["url"], # for logs
-                                                                  fast=False, 
-                                                                  config=trafilatura_conf)
+                with suppress_trafilatura_logs():
+                    extracted_full_text = trafilatura.extract(page, 
+                                                                    url=processed_data["url"], # for logs
+                                                                    fast=False, 
+                                                                    config=trafilatura_conf)
+                if not extracted_full_text:
+                    logger.info(f"Fetched url but was unable to process {processed_data['url']}")
+
+                processed_data["full_text"] = extracted_full_text
                 processed_data["meta"]["full_text_from_url"] = True
                 
     

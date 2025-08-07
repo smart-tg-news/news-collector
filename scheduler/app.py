@@ -41,34 +41,31 @@ class CrawlerScheduler:
     @staticmethod
     async def _fetch_job(crawler: BaseCrawler) -> None:
         try:
-            news = await crawler.fetch_new()
+            entries = await crawler.fetch_new()
         except FetchException:
-            news = []
+            entries = []
+
+        entries = crawler.normalize_entries(entries)
 
         # filter news based on text
         llm_filter = TextFilter()
-        news_filtered = []
         garbage_count = 0
-        for entry in news:
+        for entry in entries:
 
-            check_result = False
+            is_garbage = False
             try:
-                check_result = await llm_filter.check(entry.full_text)
+                is_garbage = not await llm_filter.check(entry.full_text)
             except Exception as e:
                 logger.warning(f"LLM check failed with exception: {repr(e)} for article {entry.url}")
-                check_result = True
+                is_garbage = False
 
-            if check_result:
-                # news_filtered.append(entry)
-                entry.meta['garbage'] = False
-            else:
+            if is_garbage:
                 logger.info(f"Garbage article {entry.url}")
-                entry.meta['garbage'] = True
                 garbage_count += 1
-            news_filtered.append(entry)
+
+            entry.meta['garbage'] = is_garbage
 
         if garbage_count:
-            logger.info(f"{garbage_count} garbage articles out of {len(news)} for {crawler.feed_url}")
-        if len(news_filtered) != len(news):
-            logger.warning(f"Left {len(news_filtered)} news from {len(news)} for {crawler.feed_url}")
-        crawler.save_data(news_filtered)
+            logger.info(f"{garbage_count} garbage articles out of {len(entries)} for {crawler.feed_url}")
+
+        crawler.save_data(entries)

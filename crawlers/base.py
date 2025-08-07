@@ -30,6 +30,14 @@ class BaseCrawler(abc.ABC):
     def _normalize(self, raw_data) -> NewsItem:
         """Convert raw response to NewsItem"""
 
+    def normalize_entries(self, entries):
+        normalised_entries = []
+        for entry in entries:
+            normalized_entry = self._normalize(entry)
+            if normalized_entry:
+                normalised_entries.append(normalized_entry)
+        return normalised_entries
+
     @staticmethod
     def news_to_json(news: List[NewsItem]) -> str:
         news_dict = [asdict(entry) for entry in news]
