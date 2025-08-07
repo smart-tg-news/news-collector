@@ -2,20 +2,18 @@ import asyncio
 from dotenv import load_dotenv
 import logging
 import sys
+from pathlib import Path
 
 from utils import config
+from utils.log import setup_logging
     
 
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler()  # send log to console
-    ]
-)
-logger = logging.getLogger(__name__)
-
 if __name__ == "__main__":
+    # configure global log settings and get logger
+    log_dir = Path(__file__).resolve().parent / "log"
+    setup_logging(log_dir)
+    logger = logging.getLogger(__name__)
+
     # load global config
     config.init_config(yaml_path="config/config.yaml", args=sys.argv[1:])
 
